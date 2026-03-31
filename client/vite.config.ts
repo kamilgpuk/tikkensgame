@@ -4,6 +4,7 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  base: "/play/",
   build: {
     outDir: "../server/dist/public",
     emptyOutDir: true,

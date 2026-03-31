@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useGame } from "./hooks/useGame.js";
+import { useFirstTimeHints } from "./hooks/useFirstTimeHints.js";
 import { Register } from "./components/Register.js";
 import { ResourceBar } from "./components/ResourceBar.js";
 import { ClickButton } from "./components/ClickButton.js";
@@ -8,38 +9,29 @@ import { UpgradePanel } from "./components/UpgradePanel.js";
 import { MilestoneLog } from "./components/MilestoneLog.js";
 import { Leaderboard } from "./components/Leaderboard.js";
 import { PrestigeModal } from "./components/PrestigeModal.js";
+import { HowToPlay } from "./components/HowToPlay.js";
+import { McpTab } from "./components/McpTab.js";
 import { getFounderTitle } from "@ai-hype/shared";
+
+type Tab = "game" | "leaderboard" | "mcp";
 
 export default function App() {
   const { playerId, playerName, state, leaderboard, milestones, connected, register, doClick, buy, doPrestige } =
     useGame();
+  const hint = useFirstTimeHints(state);
   const [showPrestige, setShowPrestige] = useState(false);
-  const [tab, setTab] = useState<"game" | "leaderboard">("game");
+  const [showHelp, setShowHelp] = useState(false);
+  const [tab, setTab] = useState<Tab>("game");
 
-  if (!playerId) {
-    return <Register onRegister={register} />;
-  }
+  if (!playerId) return <Register onRegister={register} />;
 
   if (!state) {
-    return (
-      <div className="loading">
-        <span>connecting{connected ? "" : "..."}</span>
-      </div>
-    );
+    return <div className="loading"><span>connecting{connected ? "" : "..."}</span></div>;
   }
 
-  const handleBuy = (producerType: string, id: string) => {
-    buy(producerType, id);
-  };
-
-  const handleUpgrade = (id: string) => {
-    buy("upgrade", id);
-  };
-
-  const handlePrestige = async () => {
-    await doPrestige();
-    setShowPrestige(false);
-  };
+  const handleBuy = (producerType: string, id: string) => buy(producerType, id);
+  const handleUpgrade = (id: string) => buy("upgrade", id);
+  const handlePrestige = async () => { await doPrestige(); setShowPrestige(false); };
 
   return (
     <div className="app">
@@ -56,13 +48,22 @@ export default function App() {
           <nav>
             <button className={tab === "game" ? "active" : ""} onClick={() => setTab("game")}>game</button>
             <button className={tab === "leaderboard" ? "active" : ""} onClick={() => setTab("leaderboard")}>board</button>
+            <button className={tab === "mcp" ? "active" : ""} onClick={() => setTab("mcp")}>mcp</button>
+            <button onClick={() => setShowHelp(true)}>[?]</button>
           </nav>
         </div>
       </header>
 
       <ResourceBar state={state} />
 
-      {tab === "game" ? (
+      {hint && (
+        <div className="first-hint">
+          <span>▶ {hint.text}</span>
+          <button onClick={(hint as any).dismiss}>×</button>
+        </div>
+      )}
+
+      {tab === "game" && (
         <main className="game-layout">
           <div className="left-col">
             <ClickButton state={state} onClick={doClick} />
@@ -78,19 +79,25 @@ export default function App() {
             <ProducerPanel state={state} onBuy={handleBuy} />
           </div>
         </main>
-      ) : (
+      )}
+
+      {tab === "leaderboard" && (
         <div className="board-layout">
           <Leaderboard entries={leaderboard} currentPlayerId={playerId} />
         </div>
       )}
 
-      {showPrestige && (
-        <PrestigeModal
-          state={state}
-          onConfirm={handlePrestige}
-          onCancel={() => setShowPrestige(false)}
-        />
+      {tab === "mcp" && (
+        <div className="board-layout">
+          <McpTab />
+        </div>
       )}
+
+      {showPrestige && (
+        <PrestigeModal state={state} onConfirm={handlePrestige} onCancel={() => setShowPrestige(false)} />
+      )}
+
+      {showHelp && <HowToPlay onClose={() => setShowHelp(false)} />}
     </div>
   );
 }

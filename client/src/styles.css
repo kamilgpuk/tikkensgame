@@ -321,3 +321,119 @@ nav button.active { color: var(--fg); border-bottom: 1px solid var(--fg); }
 .modal-actions { display: flex; gap: 8px; }
 .btn-confirm { flex: 1; padding: 10px; font-weight: bold; border-color: var(--green); color: var(--green); }
 .btn-cancel { flex: 1; padding: 10px; }
+
+/* ── Resource warn ─────────────────────────────────────────────────────────── */
+
+.resource-warn { font-size: 0.7rem; color: var(--red); }
+
+/* ── First-time hint ───────────────────────────────────────────────────────── */
+
+.first-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #fffbe6;
+  border-bottom: 1px solid #f0e080;
+  font-size: 0.8rem;
+  gap: 12px;
+}
+.first-hint button {
+  border: none;
+  background: none;
+  font-size: 1rem;
+  padding: 0 4px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+/* ── Locked producer rows ──────────────────────────────────────────────────── */
+
+.producer-row.locked {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.unlock-hint { font-size: 0.7rem; color: var(--muted); font-style: italic; }
+
+/* ── How to play modal ─────────────────────────────────────────────────────── */
+
+.how-to-play {
+  max-width: 560px;
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  font-weight: bold;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+}
+.modal-header button { border: none; background: none; font-family: inherit; }
+.htp-body { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+.htp-body section { display: flex; flex-direction: column; gap: 8px; }
+.htp-body h4 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.htp-body p, .htp-body li { font-size: 0.85rem; line-height: 1.6; }
+.htp-body ol, .htp-body ul { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.htp-body dl { display: grid; grid-template-columns: 100px 1fr; gap: 4px 12px; }
+.htp-body dt { font-weight: bold; font-size: 0.85rem; }
+.htp-body dd { font-size: 0.85rem; color: var(--muted); }
+
+/* ── MCP tab ───────────────────────────────────────────────────────────────── */
+
+.mcp-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 640px;
+}
+.mcp-tab h3 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.mcp-tab h4 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.mcp-tab p, .mcp-tab li { font-size: 0.85rem; line-height: 1.6; }
+.mcp-tab ul, .mcp-tab ol { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.mcp-tab code { background: #f5f5f5; padding: 1px 4px; font-family: inherit; font-size: 0.8rem; }
+.mcp-snippet-wrap { position: relative; }
+.mcp-snippet {
+  background: #f5f5f5;
+  border: 1px solid var(--border);
+  padding: 12px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+}
+.mcp-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+}

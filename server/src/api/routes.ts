@@ -1,5 +1,7 @@
 import { Router, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
+import path from "path";
+import { fileURLToPath } from "url";
 import type { HardwareId, ModelId, InvestorId, UpgradeId } from "@ai-hype/shared";
 import { getAvailableActions } from "../game/engine.js";
 import {
@@ -11,8 +13,12 @@ import {
   doBuyInvestor,
   doBuyUpgrade,
   doPrestige,
+  getOnlineCount,
+  getGlobalTokensEarned,
 } from "../game/session.js";
 import { getLeaderboard } from "../db/index.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const router = Router();
 
@@ -114,4 +120,26 @@ router.get("/actions/:playerId", (req: Request, res: Response) => {
 
 router.get("/leaderboard", (_req: Request, res: Response) => {
   res.json(getLeaderboard(20));
+});
+
+// ─── Stats (for landing page) ─────────────────────────────────────────────────
+
+router.get("/stats", (_req: Request, res: Response) => {
+  res.json({
+    playersOnline: getOnlineCount(),
+    globalTokensEarned: getGlobalTokensEarned(),
+    topPlayers: getLeaderboard(5),
+  });
+});
+
+// ─── Meta (for MCP config tab) ────────────────────────────────────────────────
+
+router.get("/meta", (_req: Request, res: Response) => {
+  const serverRoot = path.resolve(__dirname, "../../..");
+  res.json({
+    mcpEntrypoint: path.join(serverRoot, "server/dist/mcp/index.js"),
+    dbPath: path.join(serverRoot, "data/game.db"),
+    playersOnline: getOnlineCount(),
+    globalTokensEarned: getGlobalTokensEarned(),
+  });
 });

@@ -168,3 +168,15 @@ export function stopTickLoop(): void {
     tickInterval = null;
   }
 }
+
+export function getOnlineCount(): number {
+  return sessions.size;
+}
+
+export function getGlobalTokensEarned(): number {
+  let total = 0;
+  for (const state of sessions.values()) {
+    total += state.totalTokensEarned;
+  }
+  return total;
+}

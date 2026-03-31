@@ -19,11 +19,16 @@ app.use(express.json());
 // API
 app.use("/api", router);
 
-// Serve client in production
+// Landing page at /
+const LANDING = path.join(__dirname, "../../landing.html");
+app.get("/", (_req, res) => res.sendFile(LANDING));
+
+// React game app at /play (and all sub-paths)
+app.use("/play", express.static(CLIENT_DIST));
+app.get("/play*", (_req, res) => res.sendFile(path.join(CLIENT_DIST, "index.html")));
+
+// Static assets (JS/CSS chunks from Vite build)
 app.use(express.static(CLIENT_DIST));
-app.get("*", (_req, res) => {
-  res.sendFile(path.join(CLIENT_DIST, "index.html"));
-});
 
 const server = http.createServer(app);
 setupWebSocket(server);
