@@ -4,6 +4,10 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    outDir: "../server/dist/public",
+    emptyOutDir: true,
+  },
   resolve: {
     alias: {
       "@ai-hype/shared": path.resolve(__dirname, "../shared/src/index.ts"),

@@ -10,7 +10,7 @@ import { startTickLoop } from "./game/session.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PORT = Number(process.env.PORT ?? 3000);
-const CLIENT_DIST = path.join(__dirname, "../../client/dist");
+const CLIENT_DIST = path.join(__dirname, "../public");
 
 const app = express();
 app.use(cors());
