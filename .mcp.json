@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "ai-hype-machine": {
+      "command": "node",
+      "args": ["server/dist/mcp/index.js"],
+      "env": {
+        "MCP_PLAYER_ID": "mcp-bot",
+        "MCP_PLAYER_NAME": "AI Bot",
+        "DB_PATH": "./data/game.db"
+      }
+    }
+  }
+}
