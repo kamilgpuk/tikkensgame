@@ -10,37 +10,104 @@ Four connected features that turn a confusing blank game into something a strang
 
 A public page visible before the player enters their name. This is what gets shared on Twitter, HN, Discord. The game itself is the CTA.
 
-### What it is
+### Vibe
 
-Single screen, no scroll required on desktop. Replaces the current bare name-input box.
+Terminal. Like you accidentally SSHed into something that's generating tokens without you.
+Black background. Green or white monospace text. No gradients, no icons, no illustrations, no animations beyond a blinking cursor. Feels like a README came to life. The kind of page that gets screenshotted and posted on X because it looks deranged in the best way.
+
+Reference feeling: `htop`, `nethack`, old-school BBS boards, a well-written man page.
+
+### Tech
+
+A single standalone `landing.html` file — plain HTML + inline CSS + minimal vanilla JS. No React, no build step, no bundler. The server just serves it statically at `/`. This makes it fast, trivially editable, and copy-pasteable. The only external dependency is a monospace font (system font stack — no Google Fonts).
+
+### Layout
+
+Single screen on desktop, short scroll on mobile. No navbar, no footer, no chrome.
+
+```
+┌─────────────────────────────────────────────────┐
+│                                                 │
+│  AI HYPE MACHINE v0.1                           │
+│  ──────────────────────────────────────────     │
+│                                                 │
+│  > idle clicker. generate tokens. build AGI.    │
+│  > let Claude play for you via MCP.             │
+│                                                 │
+│  [ play ]   [ how it works ]                    │
+│                                                 │
+│  ──────────────────────────────────────────     │
+│  LEADERBOARD                                    │
+│   1  siliconsam      1.2M   Thought Leader      │
+│   2  promptqueen     890K   Serial Entrepreneur │
+│   3  you?            —      —                   │
+│  ──────────────────────────────────────────     │
+│                                                 │
+│  tokens generated globally: 4,821,773,002       │
+│  players online: 3                              │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
 
 ### Sections
 
-**Hero**
-- Game title: `AI HYPE MACHINE`
-- One-line pitch: *"Idle clicker game. Generate tokens. Build AGI. Let Claude play for you."*
-- Two buttons: `Play now` (goes to name input) and `View leaderboard` (scrolls down or opens board inline)
+**Header line**
+- `AI HYPE MACHINE v0.1` — left aligned, plain text, looks like a terminal prompt
+- No logo, no tagline widget, nothing fancy
 
-**Live leaderboard preview**
-- Top 5 players, updating in real time via WebSocket
-- Visible without logging in — shows the game is active and people are playing
-- Columns: rank, name, score, title (Indie Hacker / Thought Leader / etc.)
+**Pitch — two lines of green `>` prompt text**
+- `> idle clicker. generate tokens. build AGI.`
+- `> let Claude play for you via MCP.`
+- That's it. No paragraph, no bullet points.
 
-**How it works — three steps**
-- Icon + one sentence each:
-  1. Click to generate tokens → buy hardware → run AI models
-  2. Earn Hype from milestones → attract investors → unlock upgrades
-  3. Launch a Startup to prestige and multiply everything
+**CTAs — two text buttons, monospace, minimal border**
+- `[ play ]` — goes to `/play` (name input + game)
+- `[ how it works ]` — expands an inline text block below (no modal, no scroll jump, just `display:none` → visible), feels like a `man` page expanding
 
-**MCP teaser**
-- One line: *"Or connect Claude and let it strategize for you."*
-- Small code snippet showing the MCP config
-- Link: `How to connect →` opens the MCP modal (Feature 4)
+**How it works — inline expandable, hidden by default**
+Plain text, no headers, like reading a terminal output:
+```
+WHAT IS THIS
+  click [generate] to earn tokens.
+  buy hardware → generates compute.
+  buy models   → consumes compute, generates tokens/s.
+  earn hype    → multiplies everything.
+  get investors → generates funding for upgrades.
+  hit 1M tokens → launch a startup (prestige).
+  repeat. get faster. reach AGI.
 
-### Design
-- Same white monospace aesthetic as the game
-- No images, no illustrations
-- Responsive — readable on mobile (people will share the link from their phones)
+THE MCP THING
+  the game has an MCP server.
+  point Claude at it and it plays for you.
+  it reads game state, buys things, strategizes.
+  it shows up on the leaderboard as a real player.
+  → type [mcp] in the game to see setup instructions.
+```
+
+**Leaderboard — live, top 5**
+- Polls `GET /api/leaderboard` every 10 seconds (no WebSocket needed on the landing page)
+- Plain text table: rank, name, score, title
+- If no players yet: shows placeholder row `  —  be the first`
+- One line below: `tokens generated globally: 4,821,773,002` — sum of all `totalTokensEarned` across all players, also polled
+
+**Players online count**
+- One line: `players online: 3`
+- Derived from active WebSocket connections, served by `GET /api/meta`
+
+### Colours
+- Background: `#000` or `#0a0a0a`
+- Text: `#e0e0e0`
+- Accents / prompts: `#00cc44` (terminal green)
+- Muted / secondary: `#666`
+- Borders: `#222` or just plain `─` characters drawn in text
+
+### What it is NOT
+- No hero image
+- No animations (one exception: blinking cursor `_` after the last prompt line, pure CSS)
+- No marketing copy ("the future of gaming")
+- No social proof badges
+- No email capture
+- No cookie banner (no cookies)
 
 ---
 
@@ -82,10 +149,11 @@ Step-by-step in plain language:
 - Why it's worth it: Reputation permanently multiplies all token generation
 
 ### Design
-- Tabbed: `The Loop` / `Producers` / `Upgrades` / `Prestige`
-- Or single scrollable page — decide in implementation
-- Accessible from `?` button in header at all times (even mid-game)
+- Matches the game's white monospace style (not the dark terminal — the modal lives inside the game, not the landing page)
+- Single scrollable block of text, no tabs — reads like a well-formatted README
+- Triggered by `[?]` text button in the header (not an icon)
 - Keyboard shortcut: `?` key opens/closes it
+- Close button is `[ close ]` text, top right
 
 ---
 
@@ -186,9 +254,9 @@ Note: the AI plays as a separate player (`AI Bot`) — it appears on the global 
 ```
 
 ### Routing
-- `/` — landing page (unauthenticated)
-- `/play` — game (current flow, name input → game)
-- Landing page `Play now` button navigates to `/play`
+- `/` — `landing.html` served as a static file, no React involved
+- `/play` — React app (current game flow: name input → game)
+- Landing page `[ play ]` button navigates to `/play`
 
 ### State
 - Tooltips: CSS hover only, no state needed
