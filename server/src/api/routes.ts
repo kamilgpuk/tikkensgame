@@ -16,7 +16,16 @@ import {
   getOnlineCount,
   getGlobalTokensEarned,
 } from "../game/session.js";
-import { getLeaderboard } from "../db/index.js";
+import { getLeaderboard, loadState } from "../db/index.js";
+
+// Ensures a session is in memory — loads from DB if needed (e.g. MCP calls before WS connect)
+function ensureSession(playerId: string) {
+  const inMemory = getSession(playerId);
+  if (inMemory) return inMemory;
+  const fromDb = loadState(playerId);
+  if (!fromDb) return null;
+  return loadOrCreateSession(playerId, fromDb.playerName);
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,7 +48,7 @@ router.post("/players", (req: Request, res: Response) => {
 
 router.get("/state/:playerId", (req: Request, res: Response) => {
   const { playerId } = req.params;
-  const state = getSession(playerId);
+  const state = ensureSession(playerId);
   if (!state) {
     res.status(404).json({ error: "Player not found" });
     return;
@@ -51,6 +60,7 @@ router.get("/state/:playerId", (req: Request, res: Response) => {
 
 router.post("/click/:playerId", (req: Request, res: Response) => {
   const { playerId } = req.params;
+  if (!ensureSession(playerId)) { res.status(404).json({ error: "Player not found" }); return; }
   const n = Math.min(1000, Math.max(1, Number((req.body as { n?: number }).n) || 1));
   const result = doClick(playerId, n);
   if (!result.ok) {
@@ -64,6 +74,7 @@ router.post("/click/:playerId", (req: Request, res: Response) => {
 
 router.post("/buy/:playerId", (req: Request, res: Response) => {
   const { playerId } = req.params;
+  if (!ensureSession(playerId)) { res.status(404).json({ error: "Player not found" }); return; }
   const { producerType, id, quantity } = req.body as {
     producerType?: string;
     id?: string;
@@ -96,6 +107,7 @@ router.post("/buy/:playerId", (req: Request, res: Response) => {
 
 router.post("/prestige/:playerId", (req: Request, res: Response) => {
   const { playerId } = req.params;
+  if (!ensureSession(playerId)) { res.status(404).json({ error: "Player not found" }); return; }
   const result = doPrestige(playerId);
   if (!result.ok) {
     res.status(400).json({ error: result.error });
@@ -108,7 +120,7 @@ router.post("/prestige/:playerId", (req: Request, res: Response) => {
 
 router.get("/actions/:playerId", (req: Request, res: Response) => {
   const { playerId } = req.params;
-  const state = getSession(playerId);
+  const state = ensureSession(playerId);
   if (!state) {
     res.status(404).json({ error: "Player not found" });
     return;

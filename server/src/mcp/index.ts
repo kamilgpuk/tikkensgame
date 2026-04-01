@@ -3,35 +3,39 @@
  * Runs as a separate process using stdio transport.
  * Connect via: node server/dist/mcp/index.js
  *
- * The MCP server shares the same SQLite DB as the main server,
- * so actions taken here are reflected in the browser immediately (on next tick).
+ * Delegates all game actions to the HTTP server at localhost:PORT so that
+ * changes go through the shared in-memory session store and are pushed to
+ * the browser via WebSocket on the next tick.
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import type { HardwareId, ModelId, InvestorId, UpgradeId } from "@ai-hype/shared";
-import { getAvailableActions, computeScore } from "../game/engine.js";
-import {
-  loadOrCreateSession,
-  doClick,
-  doBuyHardware,
-  doBuyModel,
-  doBuyInvestor,
-  doBuyUpgrade,
-  doPrestige,
-  startTickLoop,
-} from "../game/session.js";
-import { getLeaderboard } from "../db/index.js";
 
-// The MCP player — a dedicated bot player
 const MCP_PLAYER_ID = process.env.MCP_PLAYER_ID ?? "mcp-bot";
-const MCP_PLAYER_NAME = process.env.MCP_PLAYER_NAME ?? "AI Bot";
+const PORT = process.env.PORT ?? "3000";
+const API = `http://localhost:${PORT}/api`;
 
-// Ensure the bot has a session
-loadOrCreateSession(MCP_PLAYER_ID, MCP_PLAYER_NAME);
+async function apiGet<T>(path: string): Promise<T> {
+  const res = await fetch(`${API}${path}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error: string }).error ?? res.statusText);
+  }
+  return res.json() as Promise<T>;
+}
 
-// Run the tick loop so resources accumulate
-startTickLoop();
+async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${API}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error: string }).error ?? res.statusText);
+  }
+  return res.json() as Promise<T>;
+}
 
 const server = new McpServer({
   name: "ai-hype-machine",
@@ -41,10 +45,12 @@ const server = new McpServer({
 // ─── get_game_state ───────────────────────────────────────────────────────────
 
 server.tool("get_game_state", "Get the full current game state", {}, async () => {
-  const state = loadOrCreateSession(MCP_PLAYER_ID, MCP_PLAYER_NAME);
-  return {
-    content: [{ type: "text", text: JSON.stringify(state, null, 2) }],
-  };
+  try {
+    const state = await apiGet(`/state/${MCP_PLAYER_ID}`);
+    return { content: [{ type: "text", text: JSON.stringify(state, null, 2) }] };
+  } catch (e) {
+    return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
+  }
 });
 
 // ─── get_available_actions ────────────────────────────────────────────────────
@@ -54,27 +60,34 @@ server.tool(
   "Get all available actions with cost, tokens/s gain, and payback period. Use this to decide what to buy.",
   {},
   async () => {
-    const state = loadOrCreateSession(MCP_PLAYER_ID, MCP_PLAYER_NAME);
-    const actions = getAvailableActions(state);
-    return {
-      content: [{ type: "text", text: JSON.stringify(actions, null, 2) }],
-    };
+    try {
+      const actions = await apiGet(`/actions/${MCP_PLAYER_ID}`);
+      return { content: [{ type: "text", text: JSON.stringify(actions, null, 2) }] };
+    } catch (e) {
+      return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
+    }
   }
 );
 
 // ─── click ────────────────────────────────────────────────────────────────────
 
 server.tool("click", "Perform a single manual click to earn tokens", {}, async () => {
-  const result = doClick(MCP_PLAYER_ID, 1);
-  if (!result.ok) return { content: [{ type: "text", text: `Error: ${result.error}` }] };
-  return {
-    content: [
-      {
-        type: "text",
-        text: `Clicked! Tokens: ${result.state.tokens.toFixed(2)}, Click power: ${result.state.clickPower.toFixed(2)}`,
-      },
-    ],
-  };
+  try {
+    const state = await apiPost<{ tokens: number; clickPower: number }>(
+      `/click/${MCP_PLAYER_ID}`,
+      { n: 1 }
+    );
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Clicked! Tokens: ${state.tokens.toFixed(2)}, Click power: ${state.clickPower.toFixed(2)}`,
+        },
+      ],
+    };
+  } catch (e) {
+    return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
+  }
 });
 
 // ─── click_n ──────────────────────────────────────────────────────────────────
@@ -84,16 +97,14 @@ server.tool(
   "Perform multiple clicks at once (max 1000)",
   { n: z.number().int().min(1).max(1000).describe("Number of clicks") },
   async ({ n }) => {
-    const result = doClick(MCP_PLAYER_ID, n);
-    if (!result.ok) return { content: [{ type: "text", text: `Error: ${result.error}` }] };
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Clicked ${n} times! Tokens: ${result.state.tokens.toFixed(2)}`,
-        },
-      ],
-    };
+    try {
+      const state = await apiPost<{ tokens: number }>(`/click/${MCP_PLAYER_ID}`, { n });
+      return {
+        content: [{ type: "text", text: `Clicked ${n} times! Tokens: ${state.tokens.toFixed(2)}` }],
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
+    }
   }
 );
 
@@ -110,20 +121,22 @@ server.tool(
     quantity: z.number().int().min(1).max(100).optional().default(1).describe("How many to buy"),
   },
   async ({ type, id, quantity }) => {
-    let result;
-    if (type === "hardware") result = doBuyHardware(MCP_PLAYER_ID, id as HardwareId, quantity);
-    else if (type === "model") result = doBuyModel(MCP_PLAYER_ID, id as ModelId, quantity);
-    else result = doBuyInvestor(MCP_PLAYER_ID, id as InvestorId, quantity);
-
-    if (!result.ok) return { content: [{ type: "text", text: `Error: ${result.error}` }] };
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Bought ${quantity}x ${id}. Tokens remaining: ${result.state.tokens.toFixed(2)}, Tokens/s: ${result.state.tokensPerSecond.toFixed(2)}`,
-        },
-      ],
-    };
+    try {
+      const state = await apiPost<{ tokens: number; tokensPerSecond: number }>(
+        `/buy/${MCP_PLAYER_ID}`,
+        { producerType: type, id, quantity }
+      );
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Bought ${quantity}x ${id}. Tokens remaining: ${state.tokens.toFixed(2)}, Tokens/s: ${state.tokensPerSecond.toFixed(2)}`,
+          },
+        ],
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
+    }
   }
 );
 
@@ -134,16 +147,17 @@ server.tool(
   "Buy a one-time upgrade by ID",
   { id: z.string().describe("Upgrade ID (e.g. 'better_prompts', 'quantization')") },
   async ({ id }) => {
-    const result = doBuyUpgrade(MCP_PLAYER_ID, id as UpgradeId);
-    if (!result.ok) return { content: [{ type: "text", text: `Error: ${result.error}` }] };
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Bought upgrade: ${id}. Tokens/s now: ${result.state.tokensPerSecond.toFixed(2)}`,
-        },
-      ],
-    };
+    try {
+      const state = await apiPost<{ tokensPerSecond: number }>(
+        `/buy/${MCP_PLAYER_ID}`,
+        { producerType: "upgrade", id }
+      );
+      return {
+        content: [{ type: "text", text: `Bought upgrade: ${id}. Tokens/s now: ${state.tokensPerSecond.toFixed(2)}` }],
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
+    }
   }
 );
 
@@ -154,26 +168,33 @@ server.tool(
   "Launch a Startup — reset resources but keep Reputation for a permanent multiplier",
   {},
   async () => {
-    const result = doPrestige(MCP_PLAYER_ID);
-    if (!result.ok) return { content: [{ type: "text", text: `Error: ${result.error}` }] };
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Prestige! You are now a ${result.state.prestigeCount}x founder. Reputation: ${result.state.reputation}`,
-        },
-      ],
-    };
+    try {
+      const state = await apiPost<{ prestigeCount: number; reputation: number }>(
+        `/prestige/${MCP_PLAYER_ID}`
+      );
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Prestige! You are now a ${state.prestigeCount}x founder. Reputation: ${state.reputation}`,
+          },
+        ],
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
+    }
   }
 );
 
 // ─── get_leaderboard ──────────────────────────────────────────────────────────
 
 server.tool("get_leaderboard", "Get the top 20 players on the global leaderboard", {}, async () => {
-  const board = getLeaderboard(20);
-  return {
-    content: [{ type: "text", text: JSON.stringify(board, null, 2) }],
-  };
+  try {
+    const board = await apiGet("/leaderboard");
+    return { content: [{ type: "text", text: JSON.stringify(board, null, 2) }] };
+  } catch (e) {
+    return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
+  }
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
