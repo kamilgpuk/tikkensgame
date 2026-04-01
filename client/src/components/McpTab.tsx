@@ -1,23 +1,24 @@
 import { useState, useEffect } from "react";
 
-interface Meta {
-  mcpEntrypoint: string;
-  dbPath: string;
+interface Props {
+  playerId: string;
+  playerName: string;
 }
 
-export function McpTab() {
-  const [meta, setMeta] = useState<Meta | null>(null);
+export function McpTab({ playerId, playerName }: Props) {
+  const [entrypoint, setEntrypoint] = useState("/path/to/Game/server/dist/mcp/index.js");
+  const [dbPath, setDbPath] = useState("/path/to/Game/data/game.db");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetch("/api/meta")
       .then((r) => r.json())
-      .then((d) => setMeta(d as Meta))
+      .then((d: { mcpEntrypoint: string; dbPath: string }) => {
+        setEntrypoint(d.mcpEntrypoint);
+        setDbPath(d.dbPath);
+      })
       .catch(() => null);
   }, []);
-
-  const entrypoint = meta?.mcpEntrypoint ?? "/path/to/Game/server/dist/mcp/index.js";
-  const dbPath = meta?.dbPath ?? "/path/to/Game/data/game.db";
 
   const snippet = JSON.stringify(
     {
@@ -26,8 +27,8 @@ export function McpTab() {
           command: "node",
           args: [entrypoint],
           env: {
-            MCP_PLAYER_ID: "mcp-bot",
-            MCP_PLAYER_NAME: "AI Bot",
+            MCP_PLAYER_ID: playerId,
+            MCP_PLAYER_NAME: playerName,
             DB_PATH: dbPath,
           },
         },
