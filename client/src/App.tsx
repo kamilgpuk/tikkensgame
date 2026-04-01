@@ -89,7 +89,7 @@ export default function App() {
 
       {tab === "mcp" && (
         <div className="board-layout">
-          <McpTab />
+          <McpTab playerId={playerId} playerName={playerName} />
         </div>
       )}
 
