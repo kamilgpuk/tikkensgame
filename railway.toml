@@ -1,0 +1,11 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm ci --workspaces --include-workspace-root && npm run build"
+
+[deploy]
+startCommand = "npm start"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[[volumes]]
+mountPath = "/app/data"
