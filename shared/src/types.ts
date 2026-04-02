@@ -182,7 +182,8 @@ export interface LeaderboardEntry {
 export type ServerMessage =
   | { type: "state"; payload: GameState }
   | { type: "milestone"; payload: { id: MilestoneId; message: string; hypeGain: number } }
-  | { type: "leaderboard"; payload: LeaderboardEntry[] };
+  | { type: "leaderboard"; payload: LeaderboardEntry[] }
+  | { type: "mcp_action"; payload: { action: string } };
 
 export type ClientMessage =
   | { type: "init"; playerId: string }

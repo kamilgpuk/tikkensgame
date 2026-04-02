@@ -16,7 +16,7 @@ import { getFounderTitle } from "@ai-hype/shared";
 type Tab = "game" | "leaderboard" | "mcp";
 
 export default function App() {
-  const { playerId, playerName, state, leaderboard, milestones, connected, register, doClick, buy, doPrestige } =
+  const { playerId, playerName, state, leaderboard, milestones, connected, mcpFlash, register, doClick, buy, doPrestige } =
     useGame();
   const hint = useFirstTimeHints(state);
   const [showPrestige, setShowPrestige] = useState(false);
@@ -45,6 +45,7 @@ export default function App() {
         </div>
         <div className="header-right">
           <span className={`conn-dot ${connected ? "on" : "off"}`} title={connected ? "connected" : "reconnecting"} />
+          <span className={`mcp-dot ${mcpFlash ? "active" : ""}`} title="MCP action" />
           <nav>
             <button className={tab === "game" ? "active" : ""} onClick={() => setTab("game")}>game</button>
             <button className={tab === "leaderboard" ? "active" : ""} onClick={() => setTab("leaderboard")}>board</button>

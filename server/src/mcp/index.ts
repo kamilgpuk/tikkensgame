@@ -27,7 +27,7 @@ async function apiGet<T>(path: string): Promise<T> {
 async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Mcp-Source": "1" },
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {

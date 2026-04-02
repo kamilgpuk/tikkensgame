@@ -90,6 +90,20 @@ input:focus { border-color: var(--fg); }
 }
 .conn-dot.on { background: var(--green); }
 .conn-dot.off { background: var(--red); }
+.mcp-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--red);
+  opacity: 0;
+  transition: none;
+}
+.mcp-dot.active {
+  animation: mcp-flash 0.6s ease-out forwards;
+}
+@keyframes mcp-flash {
+  0%   { opacity: 1; transform: scale(2); box-shadow: 0 0 6px 2px var(--red); }
+  60%  { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(1); }
+}
 nav { display: flex; gap: 4px; }
 nav button { border: none; background: none; padding: 4px 8px; color: var(--muted); }
 nav button.active { color: var(--fg); border-bottom: 1px solid var(--fg); }

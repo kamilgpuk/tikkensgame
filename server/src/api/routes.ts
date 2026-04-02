@@ -17,6 +17,7 @@ import {
   getGlobalTokensEarned,
 } from "../game/session.js";
 import { getLeaderboard, loadState } from "../db/index.js";
+import { broadcastMcpAction } from "../ws/handler.js";
 
 // Ensures a session is in memory — loads from DB if needed (e.g. MCP calls before WS connect)
 function ensureSession(playerId: string) {
@@ -67,6 +68,7 @@ router.post("/click/:playerId", (req: Request, res: Response) => {
     res.status(400).json({ error: result.error });
     return;
   }
+  if (req.headers["x-mcp-source"]) broadcastMcpAction(playerId, "click");
   res.json(result.state);
 });
 
@@ -100,6 +102,7 @@ router.post("/buy/:playerId", (req: Request, res: Response) => {
     res.status(400).json({ error: result.error });
     return;
   }
+  if (req.headers["x-mcp-source"]) broadcastMcpAction(playerId, `buy:${id}`);
   res.json(result.state);
 });
 
@@ -113,6 +116,7 @@ router.post("/prestige/:playerId", (req: Request, res: Response) => {
     res.status(400).json({ error: result.error });
     return;
   }
+  if (req.headers["x-mcp-source"]) broadcastMcpAction(playerId, "prestige");
   res.json(result.state);
 });
 

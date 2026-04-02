@@ -21,6 +21,10 @@ function broadcast(playerId: string, msg: ServerMessage): void {
   for (const ws of sockets) send(ws, msg);
 }
 
+export function broadcastMcpAction(playerId: string, action: string): void {
+  broadcast(playerId, { type: "mcp_action", payload: { action } });
+}
+
 export function setupWebSocket(server: Server): WebSocketServer {
   const wss = new WebSocketServer({ server, path: "/ws" });
 

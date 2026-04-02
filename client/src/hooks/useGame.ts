@@ -23,6 +23,8 @@ export function useGame() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [milestones, setMilestones] = useState<MilestoneEvent[]>([]);
   const [connected, setConnected] = useState(false);
+  const [mcpFlash, setMcpFlash] = useState(false);
+  const mcpFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
   const connect = useCallback((pid: string, pname: string) => {
@@ -45,6 +47,11 @@ export function useGame() {
       const msg = JSON.parse(evt.data as string) as ServerMessage;
       if (msg.type === "state") setState(msg.payload);
       if (msg.type === "leaderboard") setLeaderboard(msg.payload);
+      if (msg.type === "mcp_action") {
+        setMcpFlash(true);
+        if (mcpFlashTimer.current) clearTimeout(mcpFlashTimer.current);
+        mcpFlashTimer.current = setTimeout(() => setMcpFlash(false), 600);
+      }
       if (msg.type === "milestone") {
         setMilestones((prev) => [
           { ...msg.payload, ts: Date.now() },
@@ -97,6 +104,7 @@ export function useGame() {
     leaderboard,
     milestones,
     connected,
+    mcpFlash,
     register,
     doClick,
     buy,
