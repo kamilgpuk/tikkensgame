@@ -37,7 +37,7 @@ export default function App() {
     <div className="app">
       <header className="header">
         <div className="header-left">
-          <span className="game-title">AI HYPE MACHINE</span>
+          <span className="game-title">TIKKENS</span>
           <span className="player-info">
             {playerName} · {getFounderTitle(state.prestigeCount)}
             {state.prestigeCount > 0 && ` · ${state.prestigeCount}× founder`}

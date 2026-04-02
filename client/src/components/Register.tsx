@@ -9,7 +9,7 @@ export function Register({ onRegister }: Props) {
 
   return (
     <div className="register">
-      <h1>AI HYPE MACHINE</h1>
+      <h1>TIKKENS</h1>
       <p className="subtitle">build the next big thing. generate tokens. achieve AGI.</p>
       <div className="register-form">
         <input
