@@ -4,7 +4,7 @@
       "command": "node",
       "args": ["server/dist/mcp/index.js"],
       "env": {
-        "MCP_PLAYER_ID": "bee81df9-d722-4f4e-ae82-ffcfb82ef9fd",
+        "MCP_PLAYER_ID": "d254328e-2a18-4d3f-ac0e-12bb67f05c3f",
         "MCP_PLAYER_NAME": "kamil",
         "API_URL": "https://www.tikkensgame.com/api"
       }
