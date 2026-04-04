@@ -56,7 +56,24 @@ CREATE INDEX idx_players_name  ON players (lower(name));  -- case-insensitive lo
 
 ### Save Strategy
 
-Keep the current 2-second debounced save. Supabase Postgres can handle the write frequency of an idle clicker easily.
+Keep the current 2-second debounce interval, but **batch dirty sessions into a single write** instead of firing individual saves per player. On each 2s flush:
+
+1. Collect all sessions marked dirty since last flush
+2. Upsert them in a single Supabase bulk call
+3. Clear dirty flags
+
+This avoids 50+ concurrent network requests under load (Supabase writes are 50-200ms over the network, unlike ~1ms local SQLite).
+
+### Sync → Async DB Migration
+
+The current SQLite adapter (`better-sqlite3`) is **synchronous**. Supabase client is **async**. This means:
+
+- `loadState()`, `saveState()`, `getLeaderboard()` all become `async` / return `Promise`
+- `loadOrCreateSession()` in `session.ts` becomes `async`
+- Every route handler in `routes.ts` that calls session functions needs `async/await`
+- The tick loop's `maybeSave()` fires async writes but doesn't need to `await` them (fire-and-forget with error logging)
+
+This is a mechanical change (add `async/await` throughout) but touches every route handler — plan for it during the DB adapter swap in step 2.
 
 ---
 
@@ -73,29 +90,43 @@ Keep the current 2-second debounced save. Supabase Postgres can handle the write
 
 On any authentication attempt, the server does:
 
-1. Look up players by `lower(name) = lower(input_name)` — may return multiple rows (names are not unique)
+1. Look up players by `lower(name) = lower(input_name)` **ordered by `created_at ASC`** — may return multiple rows (names are not unique)
 2. For each match, compare `bcrypt(input_pin, stored_hash)`
 3. First match wins → return that player's UUID
 4. No match → error: "Wrong name or PIN"
 
-This means: if two players both named "kamil" exist, the first one whose PIN matches wins. Acceptable for a casual game; tell users to pick a distinctive name if they care.
+Deterministic ordering by `created_at` ensures the same player always resolves first when names collide.
+
+### Rate Limiting on Auth
+
+To prevent PIN brute-forcing, the server enforces a lockout:
+
+- **5 failed attempts** per `lower(name)` within a **10-minute window** → block further auth attempts for that name
+- Track in-memory: `Map<name, { failures: number, windowStart: number }>`
+- On success → clear the counter
+- On lockout → return `429 Too Many Requests` with message "Too many failed attempts. Try again in X minutes."
+- Resets automatically when the 10-minute window expires
+
+No persistence needed — server restart clears the map, which is acceptable.
 
 ### Registration Flow
 
 **Endpoint:** `POST /api/players`
 **Body:** `{ playerName, pin }`
-**Behaviour:** Always creates a new player. Does not check for duplicate names.
+**Behaviour:** Always creates a new player. If name is already taken, return a warning flag (but don't block).
 
 ```
 Server:
 1. Validate: name 1–20 chars, pin 4–8 digits only
-2. Generate UUID
-3. Hash PIN
-4. Insert row → return { playerId, state }
+2. Check if lower(name) exists → set nameTaken flag
+3. Generate UUID
+4. Hash PIN
+5. Insert row → return { playerId, state, nameTaken }
 
 Client:
-5. Store { playerId, playerName } in localStorage
-6. Show game
+6. If nameTaken → show toast: "This name is already in use. You can keep it, but a distinctive name makes recovery easier."
+7. Store { playerId, playerName } in localStorage
+8. Show game
 ```
 
 ### Login / Recovery Flow
@@ -195,8 +226,7 @@ No new code needed here. The identity fix (same player in both places) is what m
 
 ## 5. Out of Scope for This Change
 
-- WebSocket PIN verification (low priority, UUID is not guessable)
-- Rate limiting on `/api/auth` (nice-to-have, not blocking)
+- WebSocket PIN verification (low priority, UUID v4 is not guessable — known gap, acceptable for v1)
 - Multiple named accounts per browser session (overkill for v1)
 - Supabase Realtime (not needed — Railway WebSocket handles push)
 - Any changes to game engine, tick loop, producers, upgrades, or prestige
@@ -217,9 +247,9 @@ No new code needed here. The identity fix (same player in both places) is what m
 
 ---
 
-## Open Questions for Review
+## Resolved Questions
 
-1. **PIN length** — 4 digits is frictionless but guessable (10k combos). 6 digits is better (1M). Which do you prefer?
-2. **Name uniqueness** — current design allows duplicate names. Should we warn the user if their name is already taken (without blocking registration)?
-3. **Old data migration** — the two "kamil" players and "1947" player currently in Railway's SQLite will be wiped when we switch to Supabase. That's fine given the current state — confirm?
-4. **MCP_PLAYER_PIN in `.mcp.json`** — this file is gitignored? Check before committing PIN to the repo.
+1. **PIN length** — 4–8 digits, minimum 4. Brute-force mitigated by rate limiting (5 attempts / 10 min lockout per name).
+2. **Name uniqueness** — Warn but don't block. Toast message on registration if name exists.
+3. **Old data migration** — Confirmed: wipe and start fresh. Three test players, no production data.
+4. **MCP_PLAYER_PIN in `.mcp.json`** — Already gitignored. PIN is as secure as any local API key.
