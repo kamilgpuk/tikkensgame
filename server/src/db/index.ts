@@ -69,6 +69,13 @@ export function playerExists(playerId: string): boolean {
   return !!row;
 }
 
+// ─── Reset ────────────────────────────────────────────────────────────────────
+
+export function resetDb(): void {
+  const db = getDb();
+  db.exec("DELETE FROM players");
+}
+
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
 
 export function getLeaderboard(limit = 20): LeaderboardEntry[] {

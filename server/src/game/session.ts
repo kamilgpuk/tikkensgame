@@ -22,7 +22,7 @@ type MilestoneCallback = (playerId: string, milestone: MilestoneId) => void;
 
 const sessions = new Map<string, GameState>();
 const lastSaved = new Map<string, number>();
-const SAVE_INTERVAL_MS = 10_000;
+const SAVE_INTERVAL_MS = 2_000;
 const TICK_INTERVAL_MS = 100;
 
 let onMilestone: MilestoneCallback | null = null;
@@ -167,6 +167,11 @@ export function stopTickLoop(): void {
     clearInterval(tickInterval);
     tickInterval = null;
   }
+}
+
+export function clearAllSessions(): void {
+  sessions.clear();
+  lastSaved.clear();
 }
 
 export function getOnlineCount(): number {

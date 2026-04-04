@@ -15,8 +15,9 @@ import {
   doPrestige,
   getOnlineCount,
   getGlobalTokensEarned,
+  clearAllSessions,
 } from "../game/session.js";
-import { getLeaderboard, loadState } from "../db/index.js";
+import { getLeaderboard, loadState, resetDb } from "../db/index.js";
 import { broadcastMcpAction } from "../ws/handler.js";
 
 // Ensures a session is in memory — loads from DB if needed (e.g. MCP calls before WS connect)
@@ -148,6 +149,19 @@ router.get("/stats", (_req: Request, res: Response) => {
     globalTokensEarned: getGlobalTokensEarned(),
     topPlayers: getLeaderboard(5),
   });
+});
+
+// ─── Admin reset ──────────────────────────────────────────────────────────────
+
+router.post("/admin/reset", (req: Request, res: Response) => {
+  const secret = process.env.ADMIN_SECRET;
+  if (!secret || req.headers["x-admin-secret"] !== secret) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  clearAllSessions();
+  resetDb();
+  res.json({ ok: true, message: "DB wiped and sessions cleared" });
 });
 
 // ─── Meta (for MCP config tab) ────────────────────────────────────────────────
