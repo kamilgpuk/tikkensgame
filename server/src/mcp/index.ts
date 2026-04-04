@@ -12,8 +12,20 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 const MCP_PLAYER_ID = process.env.MCP_PLAYER_ID ?? "mcp-bot";
+const MCP_PLAYER_NAME = process.env.MCP_PLAYER_NAME ?? "AI Bot";
 const PORT = process.env.PORT ?? "3000";
-const API = `http://localhost:${PORT}/api`;
+const API = process.env.API_URL ?? `http://localhost:${PORT}/api`;
+
+async function ensurePlayerExists(): Promise<void> {
+  const res = await fetch(`${API}/state/${MCP_PLAYER_ID}`);
+  if (res.status === 404) {
+    await fetch(`${API}/players`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId: MCP_PLAYER_ID, playerName: MCP_PLAYER_NAME }),
+    });
+  }
+}
 
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API}${path}`);
@@ -200,9 +212,10 @@ server.tool("get_leaderboard", "Get the top 20 players on the global leaderboard
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 async function main() {
+  await ensurePlayerExists();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("AI Hype Machine MCP server running (stdio)");
+  console.error(`AI Hype Machine MCP server running (stdio) → ${API}`);
 }
 
 main().catch((err) => {

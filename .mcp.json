@@ -4,9 +4,9 @@
       "command": "node",
       "args": ["server/dist/mcp/index.js"],
       "env": {
-        "MCP_PLAYER_ID": "mcp-bot",
-        "MCP_PLAYER_NAME": "AI Bot",
-        "DB_PATH": "./data/game.db"
+        "MCP_PLAYER_ID": "bee81df9-d722-4f4e-ae82-ffcfb82ef9fd",
+        "MCP_PLAYER_NAME": "kamil",
+        "API_URL": "https://www.tikkensgame.com/api"
       }
     }
   }

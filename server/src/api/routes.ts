@@ -35,12 +35,14 @@ export const router = Router();
 // ─── Player init ──────────────────────────────────────────────────────────────
 
 router.post("/players", (req: Request, res: Response) => {
-  const { playerName } = req.body as { playerName?: string };
+  const { playerName, playerId: requestedId } = req.body as { playerName?: string; playerId?: string };
   if (!playerName || typeof playerName !== "string" || playerName.trim().length === 0) {
     res.status(400).json({ error: "playerName required" });
     return;
   }
-  const playerId = uuidv4();
+  const playerId = (typeof requestedId === "string" && requestedId.trim().length > 0)
+    ? requestedId.trim()
+    : uuidv4();
   const state = loadOrCreateSession(playerId, playerName.trim().slice(0, 32));
   res.json({ playerId, state });
 });
