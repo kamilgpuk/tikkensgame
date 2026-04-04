@@ -1,8 +1,10 @@
-# AI Hype Machine
+# T'kkens Game (inspired by kittensgame.com) 
 
-Incremental idle game. Generate tokens, buy GPUs, run AI models, attract investors, achieve AGI. Connect Claude via MCP and let it play for you.
+Feed your token burning addiction. Incremental idle game. Generate tokens, buy GPUs, run AI models, attract investors, achieve AGI. Or connect Claude via MCP and let it play for you to dominate the leaderboard.
 
 ---
+
+## Play online - tikkensgame.com
 
 ## Fresh Mac — one command
 
