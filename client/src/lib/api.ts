@@ -20,8 +20,10 @@ async function get<T>(path: string): Promise<T> {
 }
 
 export const api = {
-  createPlayer: (playerName: string) =>
-    post<{ playerId: string }>("/players", { playerName }),
+  createPlayer: (playerName: string, pin: string) =>
+    post<{ playerId: string; nameTaken: boolean }>("/players", { playerName, pin }),
+  login: (playerName: string, pin: string) =>
+    post<{ playerId: string }>("/auth", { playerName, pin }),
   click: (playerId: string, n = 1) =>
     post(`/click/${playerId}`, { n }),
   buy: (playerId: string, producerType: string, id: string, quantity = 1) =>

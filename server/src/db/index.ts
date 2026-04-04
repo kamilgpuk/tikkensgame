@@ -1,104 +1,134 @@
-import Database from "better-sqlite3";
-import path from "path";
-import { fileURLToPath } from "url";
-import { mkdirSync } from "fs";
+import { createClient } from "@supabase/supabase-js";
 import type { GameState, LeaderboardEntry } from "@ai-hype/shared";
 import { getFounderTitle } from "@ai-hype/shared";
 import { computeScore } from "../game/engine.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = process.env.DB_PATH ?? path.join(__dirname, "../../data/game.db");
+const SUPABASE_URL = process.env.SUPABASE_URL ?? "";
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY ?? "";
 
-let _db: Database.Database | null = null;
-
-export function getDb(): Database.Database {
-  if (_db) return _db;
-  // Ensure the data directory exists
-  mkdirSync(path.dirname(DB_PATH), { recursive: true });
-  _db = new Database(DB_PATH);
-  _db.pragma("journal_mode = WAL");
-  _db.pragma("foreign_keys = ON");
-  migrate(_db);
-  return _db;
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  throw new Error("SUPABASE_URL and SUPABASE_SERVICE_KEY env vars are required");
 }
 
-function migrate(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS players (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      state TEXT NOT NULL,
-      score INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_players_score ON players(score DESC);
-  `);
-}
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+  auth: { persistSession: false },
+});
 
 // ─── Player operations ────────────────────────────────────────────────────────
 
-export function saveState(state: GameState): void {
-  const db = getDb();
+export async function saveState(state: GameState): Promise<void> {
   const score = computeScore(state);
-  const stmt = db.prepare(`
-    INSERT INTO players (id, name, state, score, updated_at)
-    VALUES (@id, @name, @state, @score, unixepoch())
-    ON CONFLICT(id) DO UPDATE SET
-      name = @name,
-      state = @state,
-      score = @score,
-      updated_at = unixepoch()
-  `);
-  stmt.run({ id: state.playerId, name: state.playerName, state: JSON.stringify(state), score });
+  const { error } = await supabase.from("players").upsert({
+    id: state.playerId,
+    name: state.playerName,
+    state: state,
+    score,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) console.error("saveState error:", error.message);
 }
 
-export function loadState(playerId: string): GameState | null {
-  const db = getDb();
-  const row = db.prepare("SELECT state FROM players WHERE id = ?").get(playerId) as
-    | { state: string }
-    | undefined;
-  if (!row) return null;
-  return JSON.parse(row.state) as GameState;
+export async function loadState(playerId: string): Promise<GameState | null> {
+  const { data, error } = await supabase
+    .from("players")
+    .select("state")
+    .eq("id", playerId)
+    .single();
+  if (error || !data) return null;
+  return data.state as GameState;
 }
 
-export function playerExists(playerId: string): boolean {
-  const db = getDb();
-  const row = db.prepare("SELECT 1 FROM players WHERE id = ?").get(playerId);
-  return !!row;
+export async function playerExists(playerId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("players")
+    .select("id")
+    .eq("id", playerId)
+    .single();
+  return !!data;
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+export interface CreatePlayerResult {
+  playerId: string;
+  nameTaken: boolean;
+}
+
+export async function createPlayer(
+  playerId: string,
+  playerName: string,
+  pinHash: string
+): Promise<CreatePlayerResult> {
+  // Check if name is already taken (case-insensitive)
+  const { data: existing } = await supabase
+    .from("players")
+    .select("id")
+    .ilike("name", playerName)
+    .limit(1);
+  const nameTaken = !!(existing && existing.length > 0);
+
+  // State will be populated by loadOrCreateSession after insert
+  const { error } = await supabase.from("players").insert({
+    id: playerId,
+    name: playerName,
+    pin_hash: pinHash,
+    state: { playerId, playerName } as unknown as GameState,
+    score: 0,
+  });
+  if (error) throw new Error(error.message);
+  return { playerId, nameTaken };
+}
+
+export async function findPlayerByNameAndPin(
+  playerName: string,
+  pinHash: string,
+  comparePin: (pin: string, hash: string) => Promise<boolean>,
+  inputPin: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("players")
+    .select("id, pin_hash")
+    .ilike("name", playerName)
+    .order("created_at", { ascending: true });
+
+  if (error || !data) return null;
+
+  for (const row of data) {
+    if (await comparePin(inputPin, row.pin_hash)) {
+      return row.id as string;
+    }
+  }
+  return null;
 }
 
 // ─── Reset ────────────────────────────────────────────────────────────────────
 
-export function resetDb(): void {
-  const db = getDb();
-  db.exec("DELETE FROM players");
+export async function resetDb(): Promise<void> {
+  const { error } = await supabase.from("players").delete().neq("id", "");
+  if (error) console.error("resetDb error:", error.message);
 }
 
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
 
-export function getLeaderboard(limit = 20): LeaderboardEntry[] {
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `SELECT id, name, score, state, updated_at
-       FROM players
-       ORDER BY score DESC
-       LIMIT ?`
-    )
-    .all(limit) as { id: string; name: string; score: number; state: string; updated_at: number }[];
+export async function getLeaderboard(limit = 20): Promise<LeaderboardEntry[]> {
+  const { data, error } = await supabase
+    .from("players")
+    .select("id, name, score, state, updated_at")
+    .order("score", { ascending: false })
+    .limit(limit);
 
-  return rows.map((row, i) => {
-    const state = JSON.parse(row.state) as GameState;
+  if (error || !data) return [];
+
+  return data.map((row, i) => {
+    const state = row.state as GameState;
     return {
       rank: i + 1,
-      playerId: row.id,
-      playerName: row.name,
-      score: row.score,
+      playerId: row.id as string,
+      playerName: row.name as string,
+      score: row.score as number,
       prestigeCount: state.prestigeCount,
       title: getFounderTitle(state.prestigeCount),
-      lastActive: row.updated_at * 1000,
+      lastActive: new Date(row.updated_at as string).getTime(),
     };
   });
 }

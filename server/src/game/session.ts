@@ -1,7 +1,7 @@
 /**
  * In-memory game session store.
  * Each player has one live GameState in memory, ticked on a server interval.
- * States are persisted to SQLite periodically and on mutations.
+ * States are persisted to Supabase periodically and on mutations.
  */
 import { GameState, MilestoneId } from "@ai-hype/shared";
 import {
@@ -39,20 +39,21 @@ export function setSession(state: GameState): void {
   sessions.set(state.playerId, state);
 }
 
-export function loadOrCreateSession(playerId: string, playerName: string): GameState {
+export async function loadOrCreateSession(playerId: string, playerName: string): Promise<GameState> {
   const existing = sessions.get(playerId);
   if (existing) return existing;
 
-  const fromDb = loadState(playerId);
-  if (fromDb) {
-    fromDb.updatedAt = Date.now(); // reset clock on load
+  const fromDb = await loadState(playerId);
+  if (fromDb && fromDb.totalTokensEarned !== undefined) {
+    // Valid game state (not a stub row from registration)
+    fromDb.updatedAt = Date.now();
     sessions.set(playerId, fromDb);
     return fromDb;
   }
 
   const fresh = createInitialState(playerId, playerName);
   sessions.set(playerId, fresh);
-  saveState(fresh);
+  saveState(fresh).catch((e) => console.error("saveState error:", e));
   return fresh;
 }
 
@@ -115,7 +116,7 @@ export function doPrestige(playerId: string): BuyResult {
   const result = enginePrestige(state);
   if (result.ok) {
     sessions.set(playerId, result.state);
-    saveState(result.state);
+    saveState(result.state).catch((e) => console.error("saveState error:", e));
   }
   return result;
 }
@@ -124,7 +125,7 @@ function maybeSave(playerId: string, state: GameState): void {
   const now = Date.now();
   const last = lastSaved.get(playerId) ?? 0;
   if (now - last >= SAVE_INTERVAL_MS) {
-    saveState(state);
+    saveState(state).catch((e) => console.error("saveState error:", e));
     lastSaved.set(playerId, now);
   }
 }

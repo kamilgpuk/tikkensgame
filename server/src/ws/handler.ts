@@ -29,7 +29,6 @@ export function setupWebSocket(server: Server): WebSocketServer {
   const wss = new WebSocketServer({ server, path: "/ws" });
 
   wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-    // Extract playerId from query string: /ws?playerId=xxx&playerName=yyy
     const url = new URL(req.url ?? "", `http://localhost`);
     const playerId = url.searchParams.get("playerId");
     const playerName = url.searchParams.get("playerName") ?? "Unknown";
@@ -39,16 +38,17 @@ export function setupWebSocket(server: Server): WebSocketServer {
       return;
     }
 
-    // Register socket
     if (!playerSockets.has(playerId)) playerSockets.set(playerId, new Set());
     playerSockets.get(playerId)!.add(ws);
 
-    // Load/create session and push initial state
-    const state = loadOrCreateSession(playerId, playerName);
-    send(ws, { type: "state", payload: state });
+    // Load/create session and push initial state + leaderboard
+    loadOrCreateSession(playerId, playerName).then((state) => {
+      send(ws, { type: "state", payload: state });
+    }).catch(() => null);
 
-    // Send initial leaderboard
-    send(ws, { type: "leaderboard", payload: getLeaderboard(20) });
+    getLeaderboard(20).then((lb) => {
+      send(ws, { type: "leaderboard", payload: lb });
+    }).catch(() => null);
 
     ws.on("close", () => {
       playerSockets.get(playerId)?.delete(ws);
@@ -74,11 +74,12 @@ export function setupWebSocket(server: Server): WebSocketServer {
       type: "milestone",
       payload: { id: milestoneId, message: def.message, hypeGain: def.hypeGain },
     });
-    // Also push updated leaderboard to everyone when a milestone fires
-    const leaderboard = getLeaderboard(20);
-    for (const [pid] of playerSockets) {
-      broadcast(pid, { type: "leaderboard", payload: leaderboard });
-    }
+    // Push updated leaderboard to everyone on milestone
+    getLeaderboard(20).then((leaderboard) => {
+      for (const [pid] of playerSockets) {
+        broadcast(pid, { type: "leaderboard", payload: leaderboard });
+      }
+    }).catch(() => null);
   });
 
   return wss;

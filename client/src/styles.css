@@ -54,8 +54,16 @@ input:focus { border-color: var(--fg); }
 }
 .register h1 { font-size: 2rem; letter-spacing: 0.2em; }
 .register .subtitle { color: var(--muted); }
-.register-form { display: flex; gap: 8px; width: 320px; }
-.register-form input { flex: 1; }
+.register-form { display: flex; flex-direction: column; gap: 8px; width: 280px; }
+.register-form input { width: 100%; box-sizing: border-box; }
+.register-form button { width: 100%; }
+.auth-tabs { display: flex; gap: 0; width: 280px; }
+.auth-tabs button { flex: 1; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; padding: 6px 0; font-size: 0.85rem; }
+.auth-tabs button:first-child { border-right: none; }
+.auth-tabs button.active { background: var(--fg); color: var(--bg); }
+.auth-warning { color: #c8a800; font-size: 0.78rem; max-width: 280px; text-align: center; }
+.auth-error { color: #c84040; font-size: 0.78rem; max-width: 280px; text-align: center; }
+.auth-hint { color: var(--muted); font-size: 0.75rem; max-width: 280px; text-align: center; }
 
 /* ── Loading ───────────────────────────────────────────────────────────────── */
 

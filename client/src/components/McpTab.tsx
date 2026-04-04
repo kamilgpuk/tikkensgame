@@ -5,17 +5,15 @@ interface Props {
   playerName: string;
 }
 
-export function McpTab({ playerId, playerName }: Props) {
+export function McpTab({ playerName }: Props) {
   const [entrypoint, setEntrypoint] = useState("/path/to/Game/server/dist/mcp/index.js");
-  const [dbPath, setDbPath] = useState("/path/to/Game/data/game.db");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetch("/api/meta")
       .then((r) => r.json())
-      .then((d: { mcpEntrypoint: string; dbPath: string }) => {
+      .then((d: { mcpEntrypoint: string }) => {
         setEntrypoint(d.mcpEntrypoint);
-        setDbPath(d.dbPath);
       })
       .catch(() => null);
   }, []);
@@ -27,9 +25,9 @@ export function McpTab({ playerId, playerName }: Props) {
           command: "node",
           args: [entrypoint],
           env: {
-            MCP_PLAYER_ID: playerId,
             MCP_PLAYER_NAME: playerName,
-            DB_PATH: dbPath,
+            MCP_PLAYER_PIN: "<your-pin>",
+            API_URL: "https://www.tikkensgame.com/api",
           },
         },
       },
@@ -62,6 +60,9 @@ export function McpTab({ playerId, playerName }: Props) {
       </ul>
 
       <h4>1. copy this config</h4>
+      <p style={{ fontSize: "0.8rem", opacity: 0.7 }}>
+        Replace <code>&lt;your-pin&gt;</code> with your actual PIN before saving.
+      </p>
       <div className="mcp-snippet-wrap">
         <pre className="mcp-snippet">{snippet}</pre>
         <button className="mcp-copy" onClick={copy}>
@@ -73,7 +74,7 @@ export function McpTab({ playerId, playerName }: Props) {
       <ol>
         <li>Open terminal and run: <code>code ~/.claude/settings.json</code></li>
         <li>Merge the <code>mcpServers</code> block into the file (or create the file if it doesn't exist)</li>
-        <li>Save and restart Claude Code</li>
+        <li>Save and restart Claude Code from the game directory</li>
       </ol>
 
       <h4>3. start playing</h4>

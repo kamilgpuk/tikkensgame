@@ -3,28 +3,63 @@
  * Runs as a separate process using stdio transport.
  * Connect via: node server/dist/mcp/index.js
  *
- * Delegates all game actions to the HTTP server at localhost:PORT so that
- * changes go through the shared in-memory session store and are pushed to
- * the browser via WebSocket on the next tick.
+ * Authenticates with name + PIN on startup, then delegates all game
+ * actions to the HTTP server so changes go through the shared in-memory
+ * session store and are pushed to the browser via WebSocket.
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const MCP_PLAYER_ID = process.env.MCP_PLAYER_ID ?? "mcp-bot";
-const MCP_PLAYER_NAME = process.env.MCP_PLAYER_NAME ?? "AI Bot";
+const MCP_PLAYER_NAME = process.env.MCP_PLAYER_NAME ?? "";
+const MCP_PLAYER_PIN = process.env.MCP_PLAYER_PIN ?? "";
 const PORT = process.env.PORT ?? "3000";
 const API = process.env.API_URL ?? `http://localhost:${PORT}/api`;
 
-async function ensurePlayerExists(): Promise<void> {
-  const res = await fetch(`${API}/state/${MCP_PLAYER_ID}`);
-  if (res.status === 404) {
-    await fetch(`${API}/players`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerId: MCP_PLAYER_ID, playerName: MCP_PLAYER_NAME }),
-    });
+let resolvedPlayerId: string | null = null;
+
+async function authenticate(): Promise<void> {
+  if (!MCP_PLAYER_NAME || !MCP_PLAYER_PIN) {
+    throw new Error("MCP_PLAYER_NAME and MCP_PLAYER_PIN env vars are required");
   }
+
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(`${API}/auth`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerName: MCP_PLAYER_NAME, pin: MCP_PLAYER_PIN }),
+      });
+
+      if (res.status === 401) {
+        throw new Error(`Wrong name or PIN for player "${MCP_PLAYER_NAME}"`);
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error((err as { error: string }).error ?? res.statusText);
+      }
+
+      const data = await res.json() as { playerId: string };
+      resolvedPlayerId = data.playerId;
+      console.error(`MCP authenticated as "${MCP_PLAYER_NAME}" (${resolvedPlayerId})`);
+      return;
+    } catch (e) {
+      lastError = e as Error;
+      // Don't retry auth failures — only retry network errors
+      if (lastError.message.includes("Wrong name or PIN")) throw lastError;
+      if (attempt < 3) {
+        console.error(`MCP auth attempt ${attempt} failed, retrying in 2s...`);
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
+  }
+  throw lastError!;
+}
+
+function playerId(): string {
+  if (!resolvedPlayerId) throw new Error("Not authenticated");
+  return resolvedPlayerId;
 }
 
 async function apiGet<T>(path: string): Promise<T> {
@@ -58,7 +93,7 @@ const server = new McpServer({
 
 server.tool("get_game_state", "Get the full current game state", {}, async () => {
   try {
-    const state = await apiGet(`/state/${MCP_PLAYER_ID}`);
+    const state = await apiGet(`/state/${playerId()}`);
     return { content: [{ type: "text", text: JSON.stringify(state, null, 2) }] };
   } catch (e) {
     return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
@@ -73,7 +108,7 @@ server.tool(
   {},
   async () => {
     try {
-      const actions = await apiGet(`/actions/${MCP_PLAYER_ID}`);
+      const actions = await apiGet(`/actions/${playerId()}`);
       return { content: [{ type: "text", text: JSON.stringify(actions, null, 2) }] };
     } catch (e) {
       return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
@@ -86,7 +121,7 @@ server.tool(
 server.tool("click", "Perform a single manual click to earn tokens", {}, async () => {
   try {
     const state = await apiPost<{ tokens: number; clickPower: number }>(
-      `/click/${MCP_PLAYER_ID}`,
+      `/click/${playerId()}`,
       { n: 1 }
     );
     return {
@@ -110,7 +145,7 @@ server.tool(
   { n: z.number().int().min(1).max(1000).describe("Number of clicks") },
   async ({ n }) => {
     try {
-      const state = await apiPost<{ tokens: number }>(`/click/${MCP_PLAYER_ID}`, { n });
+      const state = await apiPost<{ tokens: number }>(`/click/${playerId()}`, { n });
       return {
         content: [{ type: "text", text: `Clicked ${n} times! Tokens: ${state.tokens.toFixed(2)}` }],
       };
@@ -135,7 +170,7 @@ server.tool(
   async ({ type, id, quantity }) => {
     try {
       const state = await apiPost<{ tokens: number; tokensPerSecond: number }>(
-        `/buy/${MCP_PLAYER_ID}`,
+        `/buy/${playerId()}`,
         { producerType: type, id, quantity }
       );
       return {
@@ -161,7 +196,7 @@ server.tool(
   async ({ id }) => {
     try {
       const state = await apiPost<{ tokensPerSecond: number }>(
-        `/buy/${MCP_PLAYER_ID}`,
+        `/buy/${playerId()}`,
         { producerType: "upgrade", id }
       );
       return {
@@ -182,7 +217,7 @@ server.tool(
   async () => {
     try {
       const state = await apiPost<{ prestigeCount: number; reputation: number }>(
-        `/prestige/${MCP_PLAYER_ID}`
+        `/prestige/${playerId()}`
       );
       return {
         content: [
@@ -212,7 +247,7 @@ server.tool("get_leaderboard", "Get the top 20 players on the global leaderboard
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 async function main() {
-  await ensurePlayerExists();
+  await authenticate();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error(`AI Hype Machine MCP server running (stdio) → ${API}`);

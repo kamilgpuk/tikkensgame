@@ -38,7 +38,6 @@ export function useGame() {
     ws.onopen = () => setConnected(true);
     ws.onclose = () => {
       setConnected(false);
-      // Reconnect after 2s
       setTimeout(() => connect(pid, pname), 2000);
     };
     ws.onerror = () => ws.close();
@@ -61,24 +60,32 @@ export function useGame() {
     };
   }, []);
 
-  // Auto-connect if we have a playerId
   useEffect(() => {
     if (playerId && playerName) connect(playerId, playerName);
     return () => wsRef.current?.close();
   }, [playerId, playerName, connect]);
 
-  const register = useCallback(async (name: string) => {
-    const { playerId: pid } = await api.createPlayer(name);
+  const storeAndConnect = useCallback((pid: string, name: string) => {
     localStorage.setItem(PLAYER_ID_KEY, pid);
     localStorage.setItem(PLAYER_NAME_KEY, name);
     setPlayerId(pid);
     setPlayerName(name);
   }, []);
 
+  const register = useCallback(async (name: string, pin: string): Promise<{ nameTaken: boolean }> => {
+    const { playerId: pid, nameTaken } = await api.createPlayer(name, pin);
+    storeAndConnect(pid, name);
+    return { nameTaken };
+  }, [storeAndConnect]);
+
+  const login = useCallback(async (name: string, pin: string): Promise<void> => {
+    const { playerId: pid } = await api.login(name, pin);
+    storeAndConnect(pid, name);
+  }, [storeAndConnect]);
+
   const doClick = useCallback(
     async (n = 1) => {
       if (!playerId) return;
-      // Optimistic update handled by WS push; just fire request
       await api.click(playerId, n).catch(() => null);
     },
     [playerId]
@@ -106,6 +113,7 @@ export function useGame() {
     connected,
     mcpFlash,
     register,
+    login,
     doClick,
     buy,
     doPrestige,

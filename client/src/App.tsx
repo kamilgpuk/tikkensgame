@@ -16,14 +16,14 @@ import { getFounderTitle } from "@ai-hype/shared";
 type Tab = "game" | "leaderboard" | "mcp";
 
 export default function App() {
-  const { playerId, playerName, state, leaderboard, milestones, connected, mcpFlash, register, doClick, buy, doPrestige } =
+  const { playerId, playerName, state, leaderboard, milestones, connected, mcpFlash, register, login, doClick, buy, doPrestige } =
     useGame();
   const hint = useFirstTimeHints(state);
   const [showPrestige, setShowPrestige] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [tab, setTab] = useState<Tab>("game");
 
-  if (!playerId) return <Register onRegister={register} />;
+  if (!playerId) return <Register onRegister={register} onLogin={login} />;
 
   if (!state) {
     return <div className="loading"><span>connecting{connected ? "" : "..."}</span></div>;
