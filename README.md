@@ -11,7 +11,7 @@ Feed your token burning addiction. Incremental idle game. Generate tokens, buy G
 Open **Terminal** and paste:
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/kamilgpuk/Game/main/bootstrap.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/kamilgpuk/tikkensgame/main/bootstrap.sh)"
 ```
 
 This installs everything from scratch (Xcode CLT → Homebrew → Node → cloudflared → clone → start) and launches the game with a public Cloudflare URL. Takes ~5 minutes on a clean machine.
@@ -40,16 +40,39 @@ This installs everything from scratch (Xcode CLT → Homebrew → Node → cloud
 
 ## Let Claude play via MCP
 
-After the server is running, add this to your `~/.claude/settings.json`:
+### Play on tikkensgame.com
+
+Add this to your `.mcp.json` (or `~/.claude/settings.json`):
 
 ```json
 {
   "mcpServers": {
     "ai-hype-machine": {
       "command": "node",
-      "args": ["/path/to/Game/server/dist/mcp/index.js"],
+      "args": ["/path/to/tikkensgame/server/dist/mcp/index.js"],
       "env": {
-        "DB_PATH": "/path/to/Game/data/game.db"
+        "MCP_PLAYER_ID": "your-player-uuid",
+        "MCP_PLAYER_NAME": "your-name",
+        "API_URL": "https://www.tikkensgame.com/api"
+      }
+    }
+  }
+}
+```
+
+The MCP server auto-registers your player on first connect if the ID doesn't exist yet.
+
+### Play locally
+
+```json
+{
+  "mcpServers": {
+    "ai-hype-machine": {
+      "command": "node",
+      "args": ["/path/to/tikkensgame/server/dist/mcp/index.js"],
+      "env": {
+        "MCP_PLAYER_ID": "your-player-uuid",
+        "MCP_PLAYER_NAME": "your-name"
       }
     }
   }

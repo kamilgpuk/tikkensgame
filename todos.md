@@ -24,7 +24,7 @@ This gets the game running on your laptop. No internet access yet, just making s
 ### 1.2 Paste the bootstrap command
 Copy this entire line and paste it into Terminal, press Enter:
 ```
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/kamilgpuk/Game/main/bootstrap.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/kamilgpuk/tikkensgame/main/bootstrap.sh)"
 ```
 
 ### 1.3 Follow the prompts

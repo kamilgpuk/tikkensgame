@@ -2,7 +2,7 @@
 # ── AI Hype Machine — bootstrap ───────────────────────────────────────────────
 # Paste this into Terminal on a fresh Mac:
 #
-#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/kamilgpuk/Game/main/bootstrap.sh)"
+#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/kamilgpuk/tikkensgame/main/bootstrap.sh)"
 #
 # What this does:
 #   1. Installs Xcode Command Line Tools (git, make, etc.)
@@ -14,7 +14,7 @@
 
 set -e
 
-REPO="https://github.com/kamilgpuk/Game.git"
+REPO="https://github.com/kamilgpuk/tikkensgame.git"
 INSTALL_DIR="$HOME/ai-hype-machine"
 
 # ── Colours ───────────────────────────────────────────────────────────────────
