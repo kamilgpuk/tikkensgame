@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
+import { mkdirSync } from "fs";
 import type { GameState, LeaderboardEntry } from "@ai-hype/shared";
 import { getFounderTitle } from "@ai-hype/shared";
 import { computeScore } from "../game/engine.js";
@@ -13,8 +14,7 @@ let _db: Database.Database | null = null;
 export function getDb(): Database.Database {
   if (_db) return _db;
   // Ensure the data directory exists
-  const dir = path.dirname(DB_PATH);
-  import("fs").then((fs) => fs.mkdirSync(dir, { recursive: true }));
+  mkdirSync(path.dirname(DB_PATH), { recursive: true });
   _db = new Database(DB_PATH);
   _db.pragma("journal_mode = WAL");
   _db.pragma("foreign_keys = ON");
