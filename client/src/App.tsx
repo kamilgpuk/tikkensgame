@@ -11,7 +11,7 @@ import { Leaderboard } from "./components/Leaderboard.js";
 import { PrestigeModal } from "./components/PrestigeModal.js";
 import { HowToPlay } from "./components/HowToPlay.js";
 import { McpTab } from "./components/McpTab.js";
-import { getFounderTitle, PRESTIGE_TOKEN_THRESHOLD, PRESTIGE_FUNDING_THRESHOLD } from "@ai-hype/shared";
+import { getFounderTitle, prestigeTokenThreshold, prestigeFundingThreshold } from "@ai-hype/shared";
 
 type Tab = "game" | "leaderboard" | "mcp";
 
@@ -75,12 +75,12 @@ export default function App() {
             <ClickButton state={state} onClick={doClick} />
             <UpgradePanel state={state} onBuy={handleUpgrade} />
             <MilestoneLog milestones={milestones} />
-            {state.totalTokensEarned >= PRESTIGE_TOKEN_THRESHOLD && (
+            {state.totalTokensEarned >= prestigeTokenThreshold(state.prestigeCount) && (
               <button
                 className="prestige-btn"
                 onClick={() => setShowPrestige(true)}
-                disabled={state.funding < PRESTIGE_FUNDING_THRESHOLD}
-                title={state.funding < PRESTIGE_FUNDING_THRESHOLD ? `Need ${PRESTIGE_FUNDING_THRESHOLD.toLocaleString()} funding` : undefined}
+                disabled={state.funding < prestigeFundingThreshold(state.prestigeCount)}
+                title={state.funding < prestigeFundingThreshold(state.prestigeCount) ? `Need ${prestigeFundingThreshold(state.prestigeCount).toLocaleString()} funding` : undefined}
               >
                 ★ launch a startup
               </button>

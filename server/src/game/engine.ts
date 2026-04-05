@@ -17,8 +17,9 @@ import {
   UPGRADE_MAP,
   MILESTONES,
   COST_SCALE,
-  PRESTIGE_TOKEN_THRESHOLD,
-  PRESTIGE_FUNDING_THRESHOLD,
+  prestigeTokenThreshold,
+  prestigeFundingThreshold,
+  reputationMultiplier,
 } from "@ai-hype/shared";
 
 // ─── Initial state ────────────────────────────────────────────────────────────
@@ -149,7 +150,7 @@ export function computeRates(state: GameState): {
   }
 
   // Reputation bonus
-  const reputationBonus = 1 + state.reputation * 0.5;
+  const reputationBonus = reputationMultiplier(state.reputation);
 
   // Hype token multiplier: (1 + hype * hypeMult)
   const hypeBonus = 1 + state.hype * hypeMult;
@@ -374,11 +375,13 @@ export function buyUpgrade(state: GameState, id: UpgradeId): BuyResult {
 // ─── Prestige ─────────────────────────────────────────────────────────────────
 
 export function prestige(state: GameState): BuyResult {
-  if (state.totalTokensEarned < PRESTIGE_TOKEN_THRESHOLD) {
-    return { ok: false, error: `Need ${PRESTIGE_TOKEN_THRESHOLD.toLocaleString()} total tokens earned` };
+  const tokenGoal = prestigeTokenThreshold(state.prestigeCount);
+  const fundingGoal = prestigeFundingThreshold(state.prestigeCount);
+  if (state.totalTokensEarned < tokenGoal) {
+    return { ok: false, error: `Need ${tokenGoal.toLocaleString()} total tokens earned` };
   }
-  if (state.funding < PRESTIGE_FUNDING_THRESHOLD) {
-    return { ok: false, error: `Need ${PRESTIGE_FUNDING_THRESHOLD.toLocaleString()} funding` };
+  if (state.funding < fundingGoal) {
+    return { ok: false, error: `Need ${fundingGoal.toLocaleString()} funding` };
   }
 
   // Reputation gained: log10 of tokens earned at prestige time (scaled)
@@ -430,7 +433,7 @@ export function getAvailableActions(state: GameState): ActionOption[] {
     const hwMult = getHardwareMultiplier(state);
     const modelMult = getModelMultiplier(state);
     const hypeBonus = 1 + state.hype;
-    const reputationBonus = 1 + state.reputation * 0.5;
+    const reputationBonus = reputationMultiplier(state.reputation);
     const tokensPerSecGain = model.tokensPerSec * modelMult * hypeBonus * reputationBonus * hwMult;
     const paybackSeconds = tokensPerSecGain > 0 ? cost / tokensPerSecGain : null;
     actions.push({

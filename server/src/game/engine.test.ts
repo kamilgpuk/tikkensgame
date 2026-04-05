@@ -15,7 +15,7 @@ import {
   isModelUnlocked,
   isInvestorUnlocked,
 } from "./engine.js";
-import { PRESTIGE_TOKEN_THRESHOLD, type UpgradeId } from "@ai-hype/shared";
+import { prestigeTokenThreshold, reputationMultiplier, type UpgradeId } from "@ai-hype/shared";
 
 describe("createInitialState", () => {
   it("creates a zeroed state", () => {
@@ -260,7 +260,7 @@ describe("prestige", () => {
     const s2 = {
       ...s,
       tokens: 5_000_000,
-      totalTokensEarned: PRESTIGE_TOKEN_THRESHOLD + 1,
+      totalTokensEarned: prestigeTokenThreshold(0) + 1,
       hardware: { ...s.hardware, mac_mini: 5 },
     };
     const result = prestige(s2);
@@ -490,10 +490,10 @@ describe("computeRates — upgrade stacking", () => {
     };
     const rates = computeRates(s2);
     // rawTokens = 3 × 2 (modelMult) × 1 (utilisation) = 6
-    // reputationBonus = 1 + 2 × 0.5 = 2
+    // reputationBonus = reputationMultiplier(2) = 1 + sqrt(2) × 1.5 ≈ 3.121
     // hypeBonus = 1 + 0 = 1
-    // tokensPerSecond = 6 × 2 × 1 = 12
-    expect(rates.tokensPerSecond).toBeCloseTo(12, 5);
+    // tokensPerSecond = 6 × reputationMultiplier(2) × 1
+    expect(rates.tokensPerSecond).toBeCloseTo(6 * reputationMultiplier(2), 5);
   });
 });
 
@@ -521,7 +521,7 @@ describe("tick — milestone progression", () => {
     const s = createInitialState("id", "p");
     const s2 = {
       ...s,
-      totalTokensEarned: PRESTIGE_TOKEN_THRESHOLD + 1,
+      totalTokensEarned: prestigeTokenThreshold(0) + 1,
       tokens: 5_000_000,
       milestonesHit: ["m1k" as const],
     };

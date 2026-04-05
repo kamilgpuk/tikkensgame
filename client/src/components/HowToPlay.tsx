@@ -66,7 +66,7 @@ export function HowToPlay({ onClose }: Props) {
             <p><strong>resets:</strong> tokens, compute, hardware, models, investors, upgrades.</p>
             <p><strong>keeps:</strong> prestige count, reputation, 10% of hype.</p>
             <p><strong>earns:</strong> reputation = log₁₀(tokens at prestige time).</p>
-            <p><strong>why:</strong> reputation permanently multiplies all token generation by ×(1 + rep × 0.5).</p>
+            <p><strong>why:</strong> reputation permanently multiplies all token generation by ×(1 + √rep × 1.5). each prestige also raises the token goal 10×.</p>
           </section>
 
           <section>

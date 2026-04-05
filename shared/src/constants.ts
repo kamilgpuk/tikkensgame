@@ -13,8 +13,20 @@ import type {
 
 export const COST_SCALE = 1.15; // each additional unit costs base × 1.15^owned
 
-export const PRESTIGE_TOKEN_THRESHOLD = 1_000_000;
-export const PRESTIGE_FUNDING_THRESHOLD = 10_000;
+/** Token goal for prestige n (run 0 → 1M, run 1 → 10M, run 2 → 100M…) */
+export function prestigeTokenThreshold(prestigeCount: number): number {
+  return 1_000_000 * Math.pow(10, prestigeCount);
+}
+
+/** Funding required to prestige on run n (0 → 10k, 1 → 50k, 2 → 250k…) */
+export function prestigeFundingThreshold(prestigeCount: number): number {
+  return 10_000 * Math.pow(5, prestigeCount);
+}
+
+/** Token generation multiplier from reputation (sqrt curve, not linear) */
+export function reputationMultiplier(reputation: number): number {
+  return 1 + Math.sqrt(reputation) * 1.5;
+}
 
 // ─── Hardware ─────────────────────────────────────────────────────────────────
 

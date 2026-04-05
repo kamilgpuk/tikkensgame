@@ -1,4 +1,5 @@
 import type { GameState } from "@ai-hype/shared";
+import { prestigeTokenThreshold, reputationMultiplier } from "@ai-hype/shared";
 import { fmt, fmtRate } from "../lib/format.js";
 
 interface Props {
@@ -26,7 +27,7 @@ function Resource({ label, value, rate, rateNegative, tooltip, warn }: ResourceP
 }
 
 export function ResourceBar({ state }: Props) {
-  const canPrestige = state.totalTokensEarned >= 1_000_000;
+  const canPrestige = state.totalTokensEarned >= prestigeTokenThreshold(state.prestigeCount);
   const computeDeficit = state.computePerSecond < 0;
 
   return (
@@ -61,7 +62,7 @@ export function ResourceBar({ state }: Props) {
         <Resource
           label="reputation"
           value={String(state.reputation)}
-          rate={`×${(1 + state.reputation * 0.5).toFixed(1)} bonus`}
+          rate={`×${reputationMultiplier(state.reputation).toFixed(1)} bonus`}
           tooltip="Earned on prestige. Permanently multiplies all token generation. Survives resets."
         />
       )}

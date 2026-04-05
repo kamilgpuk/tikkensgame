@@ -1,5 +1,5 @@
 import type { GameState } from "@ai-hype/shared";
-import { getFounderTitle, PRESTIGE_FUNDING_THRESHOLD } from "@ai-hype/shared";
+import { getFounderTitle, prestigeFundingThreshold, reputationMultiplier } from "@ai-hype/shared";
 import { fmt } from "../lib/format.js";
 
 interface Props {
@@ -25,7 +25,7 @@ export function PrestigeModal({ state, onConfirm, onCancel }: Props) {
           </div>
           <div className="gain-row">
             <span>new token multiplier</span>
-            <span>×{(1 + newReputation * 0.5).toFixed(1)}</span>
+            <span>×{reputationMultiplier(newReputation).toFixed(1)}</span>
           </div>
           <div className="gain-row">
             <span>new title</span>
@@ -33,7 +33,7 @@ export function PrestigeModal({ state, onConfirm, onCancel }: Props) {
           </div>
           <div className="gain-row warning">
             <span>funding spent</span>
-            <span>{PRESTIGE_FUNDING_THRESHOLD.toLocaleString()} F consumed</span>
+            <span>{prestigeFundingThreshold(state.prestigeCount).toLocaleString()} F consumed</span>
           </div>
           <div className="gain-row warning">
             <span>tokens lost</span>
