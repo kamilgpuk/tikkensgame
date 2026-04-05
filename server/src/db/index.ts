@@ -17,7 +17,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
 // ─── Player operations ────────────────────────────────────────────────────────
 
 export async function saveState(state: GameState): Promise<void> {
-  const score = computeScore(state);
+  const score = Math.floor(computeScore(state));
   const { error } = await supabase.from("players").upsert({
     id: state.playerId,
     name: state.playerName,
