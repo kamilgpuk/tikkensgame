@@ -14,6 +14,7 @@ import type {
 export const COST_SCALE = 1.15; // each additional unit costs base × 1.15^owned
 
 export const PRESTIGE_TOKEN_THRESHOLD = 1_000_000;
+export const PRESTIGE_FUNDING_THRESHOLD = 10_000;
 
 // ─── Hardware ─────────────────────────────────────────────────────────────────
 

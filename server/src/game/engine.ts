@@ -18,6 +18,7 @@ import {
   MILESTONES,
   COST_SCALE,
   PRESTIGE_TOKEN_THRESHOLD,
+  PRESTIGE_FUNDING_THRESHOLD,
 } from "@ai-hype/shared";
 
 // ─── Initial state ────────────────────────────────────────────────────────────
@@ -375,6 +376,9 @@ export function buyUpgrade(state: GameState, id: UpgradeId): BuyResult {
 export function prestige(state: GameState): BuyResult {
   if (state.totalTokensEarned < PRESTIGE_TOKEN_THRESHOLD) {
     return { ok: false, error: `Need ${PRESTIGE_TOKEN_THRESHOLD.toLocaleString()} total tokens earned` };
+  }
+  if (state.funding < PRESTIGE_FUNDING_THRESHOLD) {
+    return { ok: false, error: `Need ${PRESTIGE_FUNDING_THRESHOLD.toLocaleString()} funding` };
   }
 
   // Reputation gained: log10 of tokens earned at prestige time (scaled)

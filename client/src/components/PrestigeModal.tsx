@@ -1,5 +1,5 @@
 import type { GameState } from "@ai-hype/shared";
-import { getFounderTitle } from "@ai-hype/shared";
+import { getFounderTitle, PRESTIGE_FUNDING_THRESHOLD } from "@ai-hype/shared";
 import { fmt } from "../lib/format.js";
 
 interface Props {
@@ -30,6 +30,10 @@ export function PrestigeModal({ state, onConfirm, onCancel }: Props) {
           <div className="gain-row">
             <span>new title</span>
             <span>{newTitle}</span>
+          </div>
+          <div className="gain-row warning">
+            <span>funding spent</span>
+            <span>{PRESTIGE_FUNDING_THRESHOLD.toLocaleString()} F consumed</span>
           </div>
           <div className="gain-row warning">
             <span>tokens lost</span>
