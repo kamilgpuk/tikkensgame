@@ -1,4 +1,5 @@
 import type { GameState } from "@ai-hype/shared";
+import { PRESTIGE_TOKEN_THRESHOLD, PRESTIGE_FUNDING_THRESHOLD } from "@ai-hype/shared";
 import { fmt, fmtRate } from "../lib/format.js";
 
 interface Props {
@@ -26,7 +27,7 @@ function Resource({ label, value, rate, rateNegative, tooltip, warn }: ResourceP
 }
 
 export function ResourceBar({ state }: Props) {
-  const canPrestige = state.totalTokensEarned >= 1_000_000;
+  const canPrestige = state.totalTokensEarned >= PRESTIGE_TOKEN_THRESHOLD && state.funding >= PRESTIGE_FUNDING_THRESHOLD;
   const computeDeficit = state.computePerSecond < 0;
 
   return (
@@ -66,7 +67,7 @@ export function ResourceBar({ state }: Props) {
         />
       )}
       {canPrestige && (
-        <div className="prestige-hint">★ ready to launch a startup</div>
+        <div className="prestige-hint">★ ready to GO IPO</div>
       )}
     </div>
   );

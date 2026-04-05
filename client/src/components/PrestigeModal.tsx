@@ -16,7 +16,7 @@ export function PrestigeModal({ state, onConfirm, onCancel }: Props) {
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>launch a startup</h2>
+        <h2>GO IPO</h2>
         <p>reset everything and emerge wiser.</p>
         <div className="prestige-gains">
           <div className="gain-row">
@@ -42,7 +42,7 @@ export function PrestigeModal({ state, onConfirm, onCancel }: Props) {
         </div>
         <div className="modal-actions">
           <button className="btn-confirm" onClick={onConfirm}>
-            launch
+            go IPO
           </button>
           <button className="btn-cancel" onClick={onCancel}>
             not yet

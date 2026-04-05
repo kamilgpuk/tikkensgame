@@ -73,7 +73,7 @@ WHAT IS THIS
   buy models   → consumes compute, generates tokens/s.
   earn hype    → multiplies everything.
   get investors → generates funding for upgrades.
-  hit 1M tokens → launch a startup (prestige).
+  hit 1M tokens + $10K funding → GO IPO (prestige).
   repeat. get faster. reach AGI.
 
 THE MCP THING
