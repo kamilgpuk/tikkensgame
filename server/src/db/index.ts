@@ -25,7 +25,7 @@ export async function saveState(state: GameState): Promise<void> {
     score,
     updated_at: new Date().toISOString(),
   });
-  if (error) console.error("saveState error:", error.message);
+  if (error) throw new Error(`Supabase upsert failed: ${error.message}`);
 }
 
 export async function loadState(playerId: string): Promise<GameState | null> {

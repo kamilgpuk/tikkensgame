@@ -22,7 +22,9 @@ type MilestoneCallback = (playerId: string, milestone: MilestoneId) => void;
 
 const sessions = new Map<string, GameState>();
 const lastSaved = new Map<string, number>();
+const dirty = new Set<string>();
 const SAVE_INTERVAL_MS = 2_000;
+const FLUSH_INTERVAL_MS = 10_000;
 const TICK_INTERVAL_MS = 100;
 
 let onMilestone: MilestoneCallback | null = null;
@@ -53,7 +55,7 @@ export async function loadOrCreateSession(playerId: string, playerName: string):
 
   const fresh = createInitialState(playerId, playerName);
   sessions.set(playerId, fresh);
-  saveState(fresh).catch((e) => console.error("saveState error:", e));
+  persistSession(playerId, fresh);
   return fresh;
 }
 
@@ -116,19 +118,38 @@ export function doPrestige(playerId: string): BuyResult {
   const result = enginePrestige(state);
   if (result.ok) {
     sessions.set(playerId, result.state);
-    saveState(result.state).catch((e) => console.error("saveState error:", e));
+    persistSession(playerId, result.state);
   }
   return result;
 }
 
+async function persistSession(playerId: string, state: GameState): Promise<void> {
+  try {
+    await saveState(state);
+    lastSaved.set(playerId, Date.now());
+    dirty.delete(playerId);
+  } catch (e) {
+    console.error(`[persist] SAVE FAILED for player ${playerId}:`, e);
+    // Leave in dirty set — will retry on next flush
+  }
+}
+
 function maybeSave(playerId: string, state: GameState): void {
+  dirty.add(playerId);
   const now = Date.now();
   const last = lastSaved.get(playerId) ?? 0;
   if (now - last >= SAVE_INTERVAL_MS) {
-    saveState(state).catch((e) => console.error("saveState error:", e));
-    lastSaved.set(playerId, now);
+    persistSession(playerId, state);
   }
 }
+
+// Force-flush all dirty sessions every 10s, regardless of activity
+setInterval(() => {
+  for (const playerId of dirty) {
+    const state = sessions.get(playerId);
+    if (state) persistSession(playerId, state);
+  }
+}, FLUSH_INTERVAL_MS);
 
 // ─── Global tick loop ─────────────────────────────────────────────────────────
 
@@ -173,6 +194,7 @@ export function stopTickLoop(): void {
 export function clearAllSessions(): void {
   sessions.clear();
   lastSaved.clear();
+  dirty.clear();
 }
 
 export function getOnlineCount(): number {
