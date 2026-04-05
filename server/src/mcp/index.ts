@@ -137,23 +137,6 @@ server.tool("click", "Perform a single manual click to earn tokens", {}, async (
   }
 });
 
-// ─── click_n ──────────────────────────────────────────────────────────────────
-
-server.tool(
-  "click_n",
-  "Perform multiple clicks at once (max 1000)",
-  { n: z.number().int().min(1).max(1000).describe("Number of clicks") },
-  async ({ n }) => {
-    try {
-      const state = await apiPost<{ tokens: number }>(`/click/${playerId()}`, { n });
-      return {
-        content: [{ type: "text", text: `Clicked ${n} times! Tokens: ${state.tokens.toFixed(2)}` }],
-      };
-    } catch (e) {
-      return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
-    }
-  }
-);
 
 // ─── buy_producer ─────────────────────────────────────────────────────────────
 
