@@ -1,5 +1,5 @@
 {
-  "name": "ai-hype-machine",
+  "name": "tkkens",
   "private": true,
   "workspaces": ["client", "server", "shared"],
   "scripts": {

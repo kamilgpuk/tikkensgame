@@ -85,7 +85,7 @@ async function apiPost<T>(path: string, body?: unknown): Promise<T> {
 }
 
 const server = new McpServer({
-  name: "ai-hype-machine",
+  name: "t'kkens",
   version: "1.0.0",
 });
 
@@ -250,7 +250,7 @@ async function main() {
   await authenticate();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`AI Hype Machine MCP server running (stdio) → ${API}`);
+  console.error(`t'kkens MCP server running (stdio) → ${API}`);
 }
 
 main().catch((err) => {

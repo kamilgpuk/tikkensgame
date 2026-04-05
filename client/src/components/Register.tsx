@@ -49,7 +49,7 @@ export function Register({ onRegister, onLogin }: Props) {
 
   return (
     <div className="register">
-      <h1>TIKKENS</h1>
+      <h1>T'KKENS</h1>
       <p className="subtitle">build the next big thing. generate tokens. achieve AGI.</p>
 
       <div className="auth-tabs">

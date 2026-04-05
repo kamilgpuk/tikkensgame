@@ -21,7 +21,7 @@ export function McpTab({ playerName }: Props) {
   const snippet = JSON.stringify(
     {
       mcpServers: {
-        "ai-hype-machine": {
+        "t'kkens": {
           command: "node",
           args: [entrypoint],
           env: {
@@ -80,7 +80,7 @@ export function McpTab({ playerName }: Props) {
       <h4>3. start playing</h4>
       <p>In Claude Code, say:</p>
       <pre className="mcp-snippet" style={{ fontSize: "0.8rem" }}>
-        Connect to the ai-hype-machine MCP and start playing the game.
+        Connect to the t'kkens MCP and start playing the game.
         Check the state, figure out the best strategy, and keep buying things.
       </pre>
 

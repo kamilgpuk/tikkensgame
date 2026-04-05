@@ -35,7 +35,7 @@ setupWebSocket(server);
 startTickLoop();
 
 server.listen(PORT, () => {
-  console.log(`AI Hype Machine running on http://localhost:${PORT}`);
+  console.log(`t'kkens running on http://localhost:${PORT}`);
 });
 
 // MCP server runs as a separate process — see server/src/mcp/index.ts
