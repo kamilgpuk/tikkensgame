@@ -12,6 +12,7 @@ import { PrestigeModal } from "./components/PrestigeModal.js";
 import { HowToPlay } from "./components/HowToPlay.js";
 import { McpTab } from "./components/McpTab.js";
 import { getFounderTitle, PRESTIGE_TOKEN_THRESHOLD, PRESTIGE_FUNDING_THRESHOLD } from "@ai-hype/shared";
+import { fmt } from "./lib/format.js";
 
 type Tab = "game" | "leaderboard" | "mcp";
 
@@ -41,7 +42,7 @@ export default function App() {
           <span className="game-title">T'KKENS</span>
           <span className="player-info">
             {playerName} · {getFounderTitle(state.prestigeCount)}
-            {state.prestigeCount > 0 && ` · ${state.prestigeCount}× founder`}
+            {` · ${state.prestigeCount}× prestige`}
           </span>
         </div>
         <div className="header-right">
@@ -82,7 +83,7 @@ export default function App() {
                 disabled={state.funding < PRESTIGE_FUNDING_THRESHOLD}
                 title={state.funding < PRESTIGE_FUNDING_THRESHOLD ? `Need ${PRESTIGE_FUNDING_THRESHOLD.toLocaleString()} funding` : undefined}
               >
-                ★ GO IPO
+                ★ GO IPO (${fmt(PRESTIGE_FUNDING_THRESHOLD)})
               </button>
             )}
           </div>
