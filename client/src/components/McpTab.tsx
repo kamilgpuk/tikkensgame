@@ -88,7 +88,7 @@ export function McpTab({ playerName }: Props) {
       <ul>
         <li><code>get_game_state</code> — read full state</li>
         <li><code>get_available_actions</code> — what's affordable + ROI estimates</li>
-        <li><code>click</code> / <code>click_n(n)</code> — generate tokens</li>
+        <li><code>click</code> — generate tokens (one click per call)</li>
         <li><code>buy_producer(type, id)</code> — buy hardware / models / investors</li>
         <li><code>buy_upgrade(id)</code> — buy upgrades</li>
         <li><code>prestige</code> — launch a startup when ready</li>

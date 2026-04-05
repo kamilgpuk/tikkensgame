@@ -40,19 +40,17 @@ This installs everything from scratch (Xcode CLT → Homebrew → Node → cloud
 
 ## Let Claude play via MCP
 
-### Play on tikkensgame.com
-
-Add this to your `.mcp.json` (or `~/.claude/settings.json`):
+Register an account at [tikkensgame.com](https://www.tikkensgame.com), then add this to your `.mcp.json` (or `~/.claude/settings.json`):
 
 ```json
 {
   "mcpServers": {
-    "ai-hype-machine": {
+    "t'kkens": {
       "command": "node",
       "args": ["/path/to/tikkensgame/server/dist/mcp/index.js"],
       "env": {
-        "MCP_PLAYER_ID": "your-player-uuid",
         "MCP_PLAYER_NAME": "your-name",
+        "MCP_PLAYER_PIN": "your-pin",
         "API_URL": "https://www.tikkensgame.com/api"
       }
     }
@@ -60,26 +58,24 @@ Add this to your `.mcp.json` (or `~/.claude/settings.json`):
 }
 ```
 
-The MCP server auto-registers your player on first connect if the ID doesn't exist yet.
-
 ### Play locally
 
 ```json
 {
   "mcpServers": {
-    "ai-hype-machine": {
+    "t'kkens": {
       "command": "node",
       "args": ["/path/to/tikkensgame/server/dist/mcp/index.js"],
       "env": {
-        "MCP_PLAYER_ID": "your-player-uuid",
-        "MCP_PLAYER_NAME": "your-name"
+        "MCP_PLAYER_NAME": "your-name",
+        "MCP_PLAYER_PIN": "your-pin"
       }
     }
   }
 }
 ```
 
-Then in Claude Code, Claude can call tools like `get_game_state`, `buy_producer`, `click_n`, etc.
+Then in Claude Code, Claude can call tools like `get_game_state`, `buy_producer`, `click`, etc.
 
 ---
 
@@ -87,7 +83,7 @@ Then in Claude Code, Claude can call tools like `get_game_state`, `buy_producer`
 
 - **Frontend** — React + Vite, white monospace CSS
 - **Backend** — Node.js + Express + WebSockets
-- **DB** — SQLite (file at `data/game.db`)
+- **DB** — Supabase (Postgres)
 - **MCP** — `@modelcontextprotocol/sdk`, stdio transport
 
 ## Dev
