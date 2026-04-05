@@ -31,7 +31,7 @@ const mockFindPlayerByNameAndPin = jest.fn(async (
   }
   return null;
 });
-const mockGetLeaderboard = jest.fn(async (limit = 20) =>
+const mockGetLeaderboard = jest.fn(async (limit: number = 20) =>
   Array.from(store.values())
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)

@@ -141,7 +141,7 @@ it("SS8: prestige triggers immediate save with reset state", async () => {
   doPrestige("p8");
   await new Promise(r => setTimeout(r, 50));
   expect(mockSaveState).toHaveBeenCalled();
-  const saved = (mockSaveState.mock.calls[0] as [{ prestigeCount: number; tokens: number }])[0];
+  const saved = (mockSaveState.mock.calls[0] as unknown as [{ prestigeCount: number; tokens: number }])[0];
   expect(saved.prestigeCount).toBe(1);
   expect(saved.tokens).toBe(0);
 });

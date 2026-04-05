@@ -25,7 +25,7 @@ function makeSupabaseClient() {
       select: (_cols: string) => ({
         eq: (col: string, val: string) => ({
           single: () => {
-            const row = dbStore.find(r => (r as Record<string, string>)[col] === val);
+            const row = dbStore.find(r => (r as unknown as Record<string, string>)[col] === val);
             return Promise.resolve({ data: row ?? null, error: row ? null : { message: "not found" } });
           },
           ilike: (_col2: string, _val2: string) => ({

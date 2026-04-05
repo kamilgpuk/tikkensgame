@@ -42,7 +42,7 @@ const { createInitialState } = await import("../game/engine.js");
 
 // ─── Server setup ─────────────────────────────────────────────────────────────
 
-let server: http.Server;
+let server: import("http").Server;
 let port: number;
 
 function wsUrl(playerId: string, playerName = "Tester"): string {

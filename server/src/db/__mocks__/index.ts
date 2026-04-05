@@ -82,7 +82,7 @@ export const resetDb = jest.fn(async (): Promise<void> => {
   store.clear();
 });
 
-export const getLeaderboard = jest.fn(async (limit = 20): Promise<LeaderboardEntry[]> => {
+export const getLeaderboard = jest.fn(async (limit: number = 20): Promise<LeaderboardEntry[]> => {
   return Array.from(store.values())
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
