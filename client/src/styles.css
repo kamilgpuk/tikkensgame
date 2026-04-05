@@ -87,6 +87,10 @@ input:focus { border-color: var(--fg); }
   justify-content: space-between;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
 }
 .header-left { display: flex; flex-direction: column; gap: 2px; }
 .game-title { font-size: 1rem; font-weight: bold; letter-spacing: 0.15em; }
@@ -123,6 +127,10 @@ nav button.active { color: var(--fg); border-bottom: 1px solid var(--fg); }
   flex-wrap: wrap;
   gap: 0;
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 49px; /* height of .header */
+  z-index: 9;
+  background: var(--bg);
 }
 .resource {
   display: flex;
@@ -154,6 +162,7 @@ nav button.active { color: var(--fg); border-bottom: 1px solid var(--fg); }
   display: flex;
   flex: 1;
   gap: 0;
+  flex-wrap: wrap;
 }
 .left-col {
   width: 320px;
@@ -166,6 +175,43 @@ nav button.active { color: var(--fg); border-bottom: 1px solid var(--fg); }
 .right-col {
   flex: 1;
   overflow-y: auto;
+}
+
+/* Mobile sub-tabs — hidden on desktop */
+.mobile-col-tabs {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mobile-col-tabs {
+    display: flex;
+    width: 100%;
+    border-bottom: 1px solid var(--border);
+  }
+  .mobile-col-tabs button {
+    flex: 1;
+    border: none;
+    border-right: 1px solid var(--border);
+    padding: 8px 0;
+    color: var(--muted);
+    background: transparent;
+  }
+  .mobile-col-tabs button:last-child { border-right: none; }
+  .mobile-col-tabs button.active { color: var(--fg); border-bottom: 2px solid var(--fg); }
+
+  .game-layout {
+    flex-direction: column;
+  }
+  .left-col {
+    width: 100%;
+    min-width: 0;
+    border-right: none;
+  }
+  .right-col {
+    width: 100%;
+  }
+  .game-layout[data-col="producers"] .left-col { display: none; }
+  .game-layout[data-col="actions"] .right-col { display: none; }
 }
 
 /* ── Click button ──────────────────────────────────────────────────────────── */

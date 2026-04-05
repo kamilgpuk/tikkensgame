@@ -22,6 +22,7 @@ export default function App() {
   const [showPrestige, setShowPrestige] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [tab, setTab] = useState<Tab>("game");
+  const [colTab, setColTab] = useState<"actions" | "producers">("actions");
 
   if (!playerId) return <Register onRegister={register} onLogin={login} />;
 
@@ -65,7 +66,11 @@ export default function App() {
       )}
 
       {tab === "game" && (
-        <main className="game-layout">
+        <main className="game-layout" data-col={colTab}>
+          <div className="mobile-col-tabs">
+            <button className={colTab === "actions" ? "active" : ""} onClick={() => setColTab("actions")}>actions</button>
+            <button className={colTab === "producers" ? "active" : ""} onClick={() => setColTab("producers")}>producers</button>
+          </div>
           <div className="left-col">
             <ClickButton state={state} onClick={doClick} />
             <UpgradePanel state={state} onBuy={handleUpgrade} />
