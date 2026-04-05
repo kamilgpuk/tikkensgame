@@ -240,8 +240,9 @@ router.get("/actions/:playerId", async (req: Request, res: Response) => {
 
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
 
-router.get("/leaderboard", async (_req: Request, res: Response) => {
-  res.json(await getLeaderboard(20));
+router.get("/leaderboard", async (req: Request, res: Response) => {
+  const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), 100);
+  res.json(await getLeaderboard(limit));
 });
 
 // ─── Stats (for landing page) ─────────────────────────────────────────────────

@@ -235,14 +235,19 @@ server.tool(
 
 // ─── get_leaderboard ──────────────────────────────────────────────────────────
 
-server.tool("get_leaderboard", "Get the top 20 players on the global leaderboard", {}, async () => {
-  try {
-    const board = await apiGet("/leaderboard");
-    return { content: [{ type: "text", text: JSON.stringify(board, null, 2) }] };
-  } catch (e) {
-    return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
+server.tool(
+  "get_leaderboard",
+  "Get the top N players on the global leaderboard",
+  { limit: { type: "number", description: "Number of players to return (default 1)", default: 1 } },
+  async ({ limit = 1 }) => {
+    try {
+      const board = await apiGet(`/leaderboard?limit=${limit}`);
+      return { content: [{ type: "text", text: JSON.stringify(board, null, 2) }] };
+    } catch (e) {
+      return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
+    }
   }
-});
+);
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
