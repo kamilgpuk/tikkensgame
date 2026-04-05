@@ -212,6 +212,24 @@ nav button.active { color: var(--fg); border-bottom: 1px solid var(--fg); }
   }
   .game-layout[data-col="producers"] .left-col { display: none; }
   .game-layout[data-col="actions"] .right-col { display: none; }
+
+  /* Prevent horizontal overflow */
+  html, body { overflow-x: hidden; max-width: 100vw; }
+  .app { overflow-x: hidden; }
+
+  /* Header: compact to fit one row */
+  .header { padding: 8px 10px; }
+  .header-left { gap: 1px; }
+  .game-title { font-size: 0.9rem; }
+  .player-info { font-size: 0.68rem; }
+  nav { gap: 0; }
+  nav button { padding: 4px 5px; font-size: 0.8rem; }
+
+  /* Resource bar: shrink tiles to fit without overflow */
+  .resource { padding: 8px 10px; min-width: 0; flex: 1 1 80px; }
+  .resource .value { font-size: 1rem; }
+  .resource .label { letter-spacing: 0; }
+  .resource-bar { top: 45px; } /* adjusted for shorter header */
 }
 
 /* ── Click button ──────────────────────────────────────────────────────────── */
