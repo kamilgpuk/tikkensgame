@@ -15,7 +15,7 @@ import {
   isModelUnlocked,
   isInvestorUnlocked,
 } from "./engine.js";
-import { prestigeTokenThreshold, reputationMultiplier, type UpgradeId } from "@ai-hype/shared";
+import { prestigeTokenThreshold, prestigeFundingThreshold, reputationMultiplier, type UpgradeId } from "@ai-hype/shared";
 
 describe("createInitialState", () => {
   it("creates a zeroed state", () => {
@@ -261,6 +261,7 @@ describe("prestige", () => {
       ...s,
       tokens: 5_000_000,
       totalTokensEarned: prestigeTokenThreshold(0) + 1,
+      funding: prestigeFundingThreshold(0),
       hardware: { ...s.hardware, mac_mini: 5 },
     };
     const result = prestige(s2);
@@ -522,6 +523,7 @@ describe("tick — milestone progression", () => {
     const s2 = {
       ...s,
       totalTokensEarned: prestigeTokenThreshold(0) + 1,
+      funding: prestigeFundingThreshold(0),
       tokens: 5_000_000,
       milestonesHit: ["m1k" as const],
     };
@@ -561,14 +563,14 @@ describe("tick — milestone progression", () => {
 describe("prestige — edge cases", () => {
   it("P1: prestige allowed at exactly 1,000,000 totalTokensEarned", () => {
     const s = createInitialState("id", "p");
-    const s2 = { ...s, totalTokensEarned: 1_000_000 };
+    const s2 = { ...s, totalTokensEarned: 1_000_000, funding: prestigeFundingThreshold(0) };
     const result = prestige(s2);
     expect(result.ok).toBe(true);
   });
 
   it("P2: retains 10% of hype after prestige", () => {
     const s = createInitialState("id", "p");
-    const s2 = { ...s, totalTokensEarned: 2_000_000, hype: 100 };
+    const s2 = { ...s, totalTokensEarned: 2_000_000, hype: 100, funding: prestigeFundingThreshold(0) };
     const result = prestige(s2);
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -584,7 +586,7 @@ describe("prestige — edge cases", () => {
     ];
     for (const [earned, expectedGain] of cases) {
       const s = createInitialState("id", "p");
-      const s2 = { ...s, totalTokensEarned: earned };
+      const s2 = { ...s, totalTokensEarned: earned, funding: prestigeFundingThreshold(0) };
       const result = prestige(s2);
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -595,11 +597,12 @@ describe("prestige — edge cases", () => {
 
   it("P4: reputation accumulates across two prestiges", () => {
     const s = createInitialState("id", "p");
-    const s2 = { ...s, totalTokensEarned: 1_000_000 };
+    const s2 = { ...s, totalTokensEarned: 1_000_000, funding: prestigeFundingThreshold(0) };
     const r1 = prestige(s2);
     expect(r1.ok).toBe(true);
     if (!r1.ok) return;
-    const s3 = { ...r1.state, totalTokensEarned: 100_000_000 };
+    // r1.state.prestigeCount === 1, so threshold is prestigeFundingThreshold(1) = 50,000
+    const s3 = { ...r1.state, totalTokensEarned: 100_000_000, funding: prestigeFundingThreshold(1) };
     const r2 = prestige(s3);
     expect(r2.ok).toBe(true);
     if (!r2.ok) return;
@@ -611,6 +614,7 @@ describe("prestige — edge cases", () => {
     const s2 = {
       ...s,
       totalTokensEarned: 2_000_000,
+      funding: prestigeFundingThreshold(0),
       hardware: { ...s.hardware, mac_mini: 5, gaming_pc: 3 },
       models: { ...s.models, gpt2: 2 },
       investors: { ...s.investors, moms_card: 1 },
@@ -627,7 +631,7 @@ describe("prestige — edge cases", () => {
 
   it("P6: upgrades array is empty after prestige", () => {
     const s = createInitialState("id", "p");
-    const s2 = { ...s, totalTokensEarned: 2_000_000, upgrades: ["better_prompts" as const] };
+    const s2 = { ...s, totalTokensEarned: 2_000_000, funding: prestigeFundingThreshold(0), upgrades: ["better_prompts" as const] };
     const result = prestige(s2);
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -637,7 +641,7 @@ describe("prestige — edge cases", () => {
 
   it("P7: prestige preserves playerId and playerName", () => {
     const s = createInitialState("my-id", "MyPlayer");
-    const s2 = { ...s, totalTokensEarned: 2_000_000 };
+    const s2 = { ...s, totalTokensEarned: 2_000_000, funding: prestigeFundingThreshold(0) };
     const result = prestige(s2);
     expect(result.ok).toBe(true);
     if (result.ok) {
