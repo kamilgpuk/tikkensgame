@@ -224,12 +224,12 @@ nav button.active { color: var(--fg); border-bottom: 1px solid var(--fg); }
   nav { gap: 0; }
   nav button { padding: 4px 5px; font-size: 0.8rem; }
 
-  /* Resource bar: grid so tiles always fill exactly the available width */
-  .resource-bar { display: grid; grid-template-columns: repeat(auto-fill, minmax(0, 1fr)); top: 45px; }
-  .resource { padding: 8px 8px; min-width: 0; overflow: hidden; }
+  /* Resource bar: single row, tiles share width equally */
+  .resource-bar { flex-wrap: nowrap; top: 45px; }
+  .resource { flex: 1; min-width: 0; padding: 8px 6px; overflow: hidden; }
   .resource .value { font-size: 1rem; }
-  .resource .label { letter-spacing: 0; }
-  .resource .rate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .resource .label { letter-spacing: 0; font-size: 0.62rem; }
+  .resource .rate { font-size: 0.68rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 
 /* ── Click button ──────────────────────────────────────────────────────────── */
