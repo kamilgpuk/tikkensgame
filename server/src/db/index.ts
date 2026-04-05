@@ -18,14 +18,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
 
 export async function saveState(state: GameState): Promise<void> {
   const score = Math.floor(computeScore(state));
-  const { error } = await supabase.from("players").upsert({
-    id: state.playerId,
-    name: state.playerName,
-    state: state,
-    score,
-    updated_at: new Date().toISOString(),
-  });
-  if (error) throw new Error(`Supabase upsert failed: ${error.message}`);
+  const { error } = await supabase
+    .from("players")
+    .update({ state, score, updated_at: new Date().toISOString() })
+    .eq("id", state.playerId);
+  if (error) throw new Error(`Supabase update failed: ${error.message}`);
 }
 
 export async function loadState(playerId: string): Promise<GameState | null> {
