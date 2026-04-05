@@ -11,8 +11,11 @@ import {
   producerCost,
   getAvailableActions,
   computeScore,
+  isHardwareUnlocked,
+  isModelUnlocked,
+  isInvestorUnlocked,
 } from "./engine.js";
-import { PRESTIGE_TOKEN_THRESHOLD } from "@ai-hype/shared";
+import { PRESTIGE_TOKEN_THRESHOLD, type UpgradeId } from "@ai-hype/shared";
 
 describe("createInitialState", () => {
   it("creates a zeroed state", () => {
@@ -309,5 +312,431 @@ describe("computeScore", () => {
     const s = createInitialState("id", "p");
     const s2 = { ...s, prestigeCount: 1 };
     expect(computeScore(s2)).toBe(1_000_000);
+  });
+});
+
+// ─── 2.1.1 Numeric Edge Cases ──────────────────────────────────────────────────
+
+describe("tick — numeric edge cases", () => {
+  it("E1: dt=0 produces no state change", () => {
+    const s = createInitialState("id", "p");
+    const s2 = { ...s, compute: 1000, hardware: { ...s.hardware, mac_mini: 5 }, models: { ...s.models, gpt2: 1 } };
+    const before = { tokens: s2.tokens, totalTokensEarned: s2.totalTokensEarned };
+    const { state } = tick(s2, 0);
+    expect(state.tokens).toBe(before.tokens);
+    expect(state.totalTokensEarned).toBe(before.totalTokensEarned);
+  });
+
+  it("E2: negative dt produces no tokens increase", () => {
+    const s = createInitialState("id", "p");
+    const s2 = { ...s, compute: 1000, hardware: { ...s.hardware, mac_mini: 5 }, models: { ...s.models, gpt2: 1 } };
+    const { state } = tick(s2, -5000);
+    // Tokens should not increase (and must not go below 0)
+    expect(state.tokens).toBeGreaterThanOrEqual(0);
+    expect(state.totalTokensEarned).toBeGreaterThanOrEqual(s2.totalTokensEarned);
+  });
+
+  it("E3: very large dt (1 hour) produces no NaN or Infinity", () => {
+    const s = createInitialState("id", "p");
+    const s2 = { ...s, compute: 1000, hardware: { ...s.hardware, mac_mini: 5 }, models: { ...s.models, gpt2: 1 } };
+    const { state } = tick(s2, 3_600_000);
+    expect(isFinite(state.tokens)).toBe(true);
+    expect(isNaN(state.tokens)).toBe(false);
+    expect(isFinite(state.totalTokensEarned)).toBe(true);
+    expect(isNaN(state.totalTokensEarned)).toBe(false);
+  });
+
+  it("E4: producerCost with owned=1000 returns a finite number", () => {
+    const cost = producerCost(100, 1000);
+    expect(isFinite(cost)).toBe(true);
+    expect(isNaN(cost)).toBe(false);
+    expect(cost).toBeGreaterThan(0);
+  });
+
+  it("E5: click with n=0 adds no tokens", () => {
+    const s = createInitialState("id", "p");
+    const s2 = click(s, 0);
+    expect(s2.tokens).toBe(s.tokens);
+    expect(s2.totalClicks).toBe(s.totalClicks);
+  });
+
+  it("E8: tokens at MAX_SAFE_INTEGER — buy succeeds gracefully", () => {
+    const s = createInitialState("id", "p");
+    const s2 = { ...s, tokens: Number.MAX_SAFE_INTEGER };
+    const result = buyHardware(s2, "mac_mini");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(isFinite(result.state.tokens)).toBe(true);
+      expect(result.state.tokens).toBeGreaterThan(0);
+    }
+  });
+
+  it("E9: NaN tokens — tick does not throw", () => {
+    const s = createInitialState("id", "p");
+    const s2 = { ...s, tokens: NaN };
+    expect(() => tick(s2, 1000)).not.toThrow();
+  });
+});
+
+// ─── 2.1.2 Compute Utilization ────────────────────────────────────────────────
+
+describe("computeRates — compute utilization", () => {
+  it("U1: models with no hardware and no compute → tokensPerSecond = 0", () => {
+    const s = createInitialState("id", "p");
+    const s2 = { ...s, compute: 0, models: { ...s.models, gpt2: 10 } };
+    const rates = computeRates(s2);
+    expect(rates.tokensPerSecond).toBe(0);
+  });
+
+  it("U2: models consume exactly available compute → 100% utilization", () => {
+    // 1 gpt2 consumes 1 compute/s; 1 mac_mini generates 1 compute/s
+    const s = createInitialState("id", "p");
+    const s2 = {
+      ...s,
+      compute: 0,
+      hardware: { ...s.hardware, mac_mini: 1 },
+      models: { ...s.models, gpt2: 1 },
+    };
+    const ratesFull = computeRates({ ...s2, compute: 1000 });
+    const ratesExact = computeRates(s2);
+    // At exact compute balance, utilisation = 1 (computeAvailable = 0 + generated = 1)
+    expect(ratesExact.tokensPerSecond).toBeCloseTo(ratesFull.tokensPerSecond, 5);
+  });
+
+  it("U3: models consume 2× available compute → ~50% token rate", () => {
+    // 2 gpt2 consume 2 compute/s; 1 mac_mini generates 1 compute/s
+    const s = createInitialState("id", "p");
+    const half = computeRates({
+      ...s,
+      compute: 0,
+      hardware: { ...s.hardware, mac_mini: 1 },
+      models: { ...s.models, gpt2: 2 },
+    });
+    const full = computeRates({
+      ...s,
+      compute: 1000,
+      hardware: { ...s.hardware, mac_mini: 1 },
+      models: { ...s.models, gpt2: 2 },
+    });
+    expect(half.tokensPerSecond).toBeCloseTo(full.tokensPerSecond * 0.5, 3);
+  });
+
+  it("U4: adding hardware increases token rate", () => {
+    const s = createInitialState("id", "p");
+    const before = computeRates({
+      ...s, compute: 0,
+      hardware: { ...s.hardware, mac_mini: 1 },
+      models: { ...s.models, gpt2: 2 },
+    });
+    const after = computeRates({
+      ...s, compute: 0,
+      hardware: { ...s.hardware, mac_mini: 2 },
+      models: { ...s.models, gpt2: 2 },
+    });
+    expect(after.tokensPerSecond).toBeGreaterThan(before.tokensPerSecond);
+  });
+});
+
+// ─── 2.1.3 Upgrade Stacking ───────────────────────────────────────────────────
+
+describe("computeRates — upgrade stacking", () => {
+  it("S1: quantization (×2) + flash_attention (×3) hardware upgrades = ×6 compute", () => {
+    const s = createInitialState("id", "p");
+    const base = {
+      ...s,
+      hardware: { ...s.hardware, mac_mini: 1 }, // 1 compute/s base
+    };
+    const withUpgrades = { ...base, upgrades: ["quantization" as const, "flash_attention" as const] };
+    const rates = computeRates(withUpgrades);
+    // 1 mac_mini × 1 compute/s × 2 × 3 = 6
+    expect(rates.computePerSecond).toBeCloseTo(6, 5);
+  });
+
+  it("S2: all 3 click upgrades (×2, ×5, ×10) → clickPower = 100", () => {
+    const s = createInitialState("id", "p");
+    const s2 = {
+      ...s,
+      upgrades: ["better_prompts" as const, "prompt_engineering" as const, "chain_of_thought" as const],
+    };
+    const rates = computeRates(s2);
+    expect(rates.clickPower).toBe(100); // 1 * 2 * 5 * 10 (rep=0, so reputationBonus=1)
+  });
+
+  it("S3: hype_machine multiplier doubles hype gain from milestone", () => {
+    const s = createInitialState("id", "p");
+    const withUpgrade = {
+      ...s,
+      totalTokensEarned: 999,
+      compute: 100_000,
+      models: { ...s.models, gpt2: 1000 },
+      upgrades: ["hype_machine" as const],
+    };
+    const withoutUpgrade = { ...withUpgrade, upgrades: [] as UpgradeId[] };
+    const { state: stateWith } = tick(withUpgrade, 1000);
+    const { state: stateWithout } = tick(withoutUpgrade, 1000);
+    // Both cross m1k; with upgrade hype gain = 0.5 × 2 = 1; without = 0.5
+    expect(stateWith.hype).toBeGreaterThan(stateWithout.hype);
+  });
+
+  it("S4: reputation bonus stacks with model multiplier upgrade", () => {
+    const s = createInitialState("id", "p");
+    // 1 gpt2 (3 tokens/s), mixture_of_experts (×2 model), reputation=2 (×2 bonus)
+    const s2 = {
+      ...s,
+      compute: 100_000,
+      models: { ...s.models, gpt2: 1 },
+      upgrades: ["mixture_of_experts" as const],
+      reputation: 2,
+    };
+    const rates = computeRates(s2);
+    // rawTokens = 3 × 2 (modelMult) × 1 (utilisation) = 6
+    // reputationBonus = 1 + 2 × 0.5 = 2
+    // hypeBonus = 1 + 0 = 1
+    // tokensPerSecond = 6 × 2 × 1 = 12
+    expect(rates.tokensPerSecond).toBeCloseTo(12, 5);
+  });
+});
+
+// ─── 2.1.4 Milestone Progression ─────────────────────────────────────────────
+
+describe("tick — milestone progression", () => {
+  it("M1: crossing multiple milestones in a single tick fires them all", () => {
+    const s = createInitialState("id", "p");
+    // Very high tokens/s to cross m1k, m10k, m100k in one tick
+    const s2 = {
+      ...s,
+      totalTokensEarned: 0,
+      compute: 100_000,
+      models: { ...s.models, gpt2: 1000 }, // ~3M tokens/s with hype
+      hype: 1000,
+    };
+    const { newMilestones } = tick(s2, 1000);
+    expect(newMilestones).toContain("m1k");
+    expect(newMilestones).toContain("m10k");
+    expect(newMilestones).toContain("m100k");
+    expect(newMilestones).toContain("m1m");
+  });
+
+  it("M2: prestige resets milestones and they can be re-earned", () => {
+    const s = createInitialState("id", "p");
+    const s2 = {
+      ...s,
+      totalTokensEarned: PRESTIGE_TOKEN_THRESHOLD + 1,
+      tokens: 5_000_000,
+      milestonesHit: ["m1k" as const],
+    };
+    const prestigeResult = prestige(s2);
+    expect(prestigeResult.ok).toBe(true);
+    if (!prestigeResult.ok) return;
+    // After prestige, milestonesHit is empty
+    expect(prestigeResult.state.milestonesHit).toHaveLength(0);
+    // Cross m1k again
+    const s3 = {
+      ...prestigeResult.state,
+      compute: 100_000,
+      models: { ...prestigeResult.state.models, gpt2: 100 },
+    };
+    const { newMilestones } = tick(s3, 1000);
+    expect(newMilestones).toContain("m1k");
+  });
+
+  it("M3: all 8 milestones crossed yields correct total hype", () => {
+    const s = createInitialState("id", "p");
+    // 500M gpt2 × 3 tokens/s = 1.5B/s; tick 30s → 45B earned; state.compute large for full utilisation
+    const s2 = {
+      ...s,
+      totalTokensEarned: 0,
+      compute: 1e14,
+      models: { ...s.models, gpt2: 500_000_000 },
+    };
+    const { newMilestones, state } = tick(s2, 30_000);
+    expect(newMilestones.length).toBe(8);
+    // Total hype = 0.5+1+2+3+5+8+13+21 = 53.5
+    expect(state.hype).toBeCloseTo(53.5, 5);
+  });
+});
+
+// ─── 2.1.5 Prestige Edge Cases ────────────────────────────────────────────────
+
+describe("prestige — edge cases", () => {
+  it("P1: prestige allowed at exactly 1,000,000 totalTokensEarned", () => {
+    const s = createInitialState("id", "p");
+    const s2 = { ...s, totalTokensEarned: 1_000_000 };
+    const result = prestige(s2);
+    expect(result.ok).toBe(true);
+  });
+
+  it("P2: retains 10% of hype after prestige", () => {
+    const s = createInitialState("id", "p");
+    const s2 = { ...s, totalTokensEarned: 2_000_000, hype: 100 };
+    const result = prestige(s2);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.hype).toBeCloseTo(10, 5);
+    }
+  });
+
+  it("P3: reputation gain = floor(log10(totalTokensEarned))", () => {
+    const cases: [number, number][] = [
+      [1_000_000, 6],
+      [100_000_000, 8],
+      [10_000_000_000, 10],
+    ];
+    for (const [earned, expectedGain] of cases) {
+      const s = createInitialState("id", "p");
+      const s2 = { ...s, totalTokensEarned: earned };
+      const result = prestige(s2);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.state.reputation).toBe(expectedGain);
+      }
+    }
+  });
+
+  it("P4: reputation accumulates across two prestiges", () => {
+    const s = createInitialState("id", "p");
+    const s2 = { ...s, totalTokensEarned: 1_000_000 };
+    const r1 = prestige(s2);
+    expect(r1.ok).toBe(true);
+    if (!r1.ok) return;
+    const s3 = { ...r1.state, totalTokensEarned: 100_000_000 };
+    const r2 = prestige(s3);
+    expect(r2.ok).toBe(true);
+    if (!r2.ok) return;
+    expect(r2.state.reputation).toBeGreaterThan(r1.state.reputation);
+  });
+
+  it("P5: all producer counts reset to 0 after prestige", () => {
+    const s = createInitialState("id", "p");
+    const s2 = {
+      ...s,
+      totalTokensEarned: 2_000_000,
+      hardware: { ...s.hardware, mac_mini: 5, gaming_pc: 3 },
+      models: { ...s.models, gpt2: 2 },
+      investors: { ...s.investors, moms_card: 1 },
+    };
+    const result = prestige(s2);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.hardware.mac_mini).toBe(0);
+      expect(result.state.hardware.gaming_pc).toBe(0);
+      expect(result.state.models.gpt2).toBe(0);
+      expect(result.state.investors.moms_card).toBe(0);
+    }
+  });
+
+  it("P6: upgrades array is empty after prestige", () => {
+    const s = createInitialState("id", "p");
+    const s2 = { ...s, totalTokensEarned: 2_000_000, upgrades: ["better_prompts" as const] };
+    const result = prestige(s2);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.upgrades).toHaveLength(0);
+    }
+  });
+
+  it("P7: prestige preserves playerId and playerName", () => {
+    const s = createInitialState("my-id", "MyPlayer");
+    const s2 = { ...s, totalTokensEarned: 2_000_000 };
+    const result = prestige(s2);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.playerId).toBe("my-id");
+      expect(result.state.playerName).toBe("MyPlayer");
+    }
+  });
+});
+
+// ─── 2.1.6 Unlock Chains ─────────────────────────────────────────────────────
+
+describe("unlock chains", () => {
+  it("L1: hardware unlock conditions", () => {
+    const s = createInitialState("id", "p");
+    // mac_mini: always unlocked
+    expect(isHardwareUnlocked("mac_mini", s)).toBe(true);
+    // gaming_pc: requires 3 mac_minis
+    expect(isHardwareUnlocked("gaming_pc", s)).toBe(false);
+    expect(isHardwareUnlocked("gaming_pc", { ...s, hardware: { ...s.hardware, mac_mini: 3 } })).toBe(true);
+    // a100: requires 3 gaming_pcs
+    expect(isHardwareUnlocked("a100", { ...s, hardware: { ...s.hardware, gaming_pc: 3 } })).toBe(true);
+    // tpu_pod: requires 3 a100s
+    expect(isHardwareUnlocked("tpu_pod", { ...s, hardware: { ...s.hardware, a100: 3 } })).toBe(true);
+    // gpu_cluster: requires 3 tpu_pods
+    expect(isHardwareUnlocked("gpu_cluster", { ...s, hardware: { ...s.hardware, tpu_pod: 3 } })).toBe(true);
+    // data_center: requires 3 gpu_clusters
+    expect(isHardwareUnlocked("data_center", { ...s, hardware: { ...s.hardware, gpu_cluster: 3 } })).toBe(true);
+    // hyperscaler: requires 3 data_centers
+    expect(isHardwareUnlocked("hyperscaler", { ...s, hardware: { ...s.hardware, data_center: 3 } })).toBe(true);
+  });
+
+  it("L2: model unlock conditions", () => {
+    const s = createInitialState("id", "p");
+    // gpt2: always unlocked
+    expect(isModelUnlocked("gpt2", s)).toBe(true);
+    // llama7b: requires 1 mac_mini
+    expect(isModelUnlocked("llama7b", s)).toBe(false);
+    expect(isModelUnlocked("llama7b", { ...s, hardware: { ...s.hardware, mac_mini: 1 } })).toBe(true);
+    // mistral7b: requires 1 gaming_pc
+    expect(isModelUnlocked("mistral7b", { ...s, hardware: { ...s.hardware, gaming_pc: 1 } })).toBe(true);
+    // llama70b: requires 1 a100
+    expect(isModelUnlocked("llama70b", { ...s, hardware: { ...s.hardware, a100: 1 } })).toBe(true);
+    // claude_haiku: requires 1 tpu_pod
+    expect(isModelUnlocked("claude_haiku", { ...s, hardware: { ...s.hardware, tpu_pod: 1 } })).toBe(true);
+    // gpt4: requires 1 gpu_cluster
+    expect(isModelUnlocked("gpt4", { ...s, hardware: { ...s.hardware, gpu_cluster: 1 } })).toBe(true);
+    // agi: requires 1 data_center + 10 prestiges
+    expect(isModelUnlocked("agi", { ...s, hardware: { ...s.hardware, data_center: 1 }, prestigeCount: 9 })).toBe(false);
+    expect(isModelUnlocked("agi", { ...s, hardware: { ...s.hardware, data_center: 1 }, prestigeCount: 10 })).toBe(true);
+  });
+
+  it("L3: investor unlock conditions (hype thresholds)", () => {
+    const s = createInitialState("id", "p");
+    // moms_card: hype >= 1
+    expect(isInvestorUnlocked("moms_card", { ...s, hype: 0 })).toBe(false);
+    expect(isInvestorUnlocked("moms_card", { ...s, hype: 1 })).toBe(true);
+    // angel: hype >= 3
+    expect(isInvestorUnlocked("angel", { ...s, hype: 3 })).toBe(true);
+    // seed: hype >= 5
+    expect(isInvestorUnlocked("seed", { ...s, hype: 5 })).toBe(true);
+    // series_a: hype >= 10
+    expect(isInvestorUnlocked("series_a", { ...s, hype: 10 })).toBe(true);
+    // softbank: hype >= 20
+    expect(isInvestorUnlocked("softbank", { ...s, hype: 20 })).toBe(true);
+    // saudi_fund: hype >= 50
+    expect(isInvestorUnlocked("saudi_fund", { ...s, hype: 49 })).toBe(false);
+    expect(isInvestorUnlocked("saudi_fund", { ...s, hype: 50 })).toBe(true);
+  });
+
+  it("L4: cannot buy tier N hardware with exactly 2 of tier N-1", () => {
+    const s = createInitialState("id", "p");
+    const s2 = { ...s, tokens: 999_999, hardware: { ...s.hardware, mac_mini: 2 } };
+    const result = buyHardware(s2, "gaming_pc");
+    expect(result.ok).toBe(false);
+  });
+
+  it("L5: can buy tier N hardware with exactly 3 of tier N-1", () => {
+    const s = createInitialState("id", "p");
+    const s2 = { ...s, tokens: 999_999, hardware: { ...s.hardware, mac_mini: 3 } };
+    const result = buyHardware(s2, "gaming_pc");
+    expect(result.ok).toBe(true);
+  });
+});
+
+// ─── 2.1.7 Score Computation ──────────────────────────────────────────────────
+
+describe("computeScore — formula verification", () => {
+  it("SC1: score = totalTokensEarned + prestigeCount×1M + reputation×500K", () => {
+    const s = createInitialState("id", "p");
+    const s2 = { ...s, totalTokensEarned: 2_000_000, prestigeCount: 3, reputation: 6 };
+    const expected = 2_000_000 + 3 * 1_000_000 + 6 * 500_000;
+    expect(computeScore(s2)).toBe(expected);
+  });
+
+  it("SC2: same tokens, higher prestige → higher score", () => {
+    const s = createInitialState("id", "p");
+    const base = { ...s, totalTokensEarned: 5_000_000 };
+    const p1 = { ...base, prestigeCount: 1 };
+    const p2 = { ...base, prestigeCount: 2 };
+    expect(computeScore(p2)).toBeGreaterThan(computeScore(p1));
   });
 });

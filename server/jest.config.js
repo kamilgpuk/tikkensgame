@@ -8,6 +8,9 @@ export default {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   transform: {
-    "^.+\\.tsx?$": ["ts-jest", { useESM: true, tsconfig: "./tsconfig.json" }],
+    "^.+\\.tsx?$": ["ts-jest", { useESM: true, tsconfig: "./tsconfig.json", isolatedModules: true, diagnostics: false }],
   },
+  setupFiles: ["<rootDir>/src/test-env.cjs"],
+  forceExit: true,
+  testTimeout: 15000,
 };

@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
@@ -20,6 +21,16 @@ export default defineConfig({
       "/ws": {
         target: "ws://localhost:3000",
         ws: true,
+      },
+    },
+  },
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: ["./src/test-setup.ts"],
+    resolve: {
+      alias: {
+        "@ai-hype/shared": path.resolve(__dirname, "../shared/src/index.ts"),
       },
     },
   },
