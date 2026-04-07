@@ -83,7 +83,30 @@ const utilisation = totalComputeNeeded.gt(0)
 
 New logic: binary on/off per hardware unit and per model instance, with most-expensive-first shutdown order.
 
-> ⚠ Open question: should "offline" be tracked in `GameState` explicitly (e.g. `offlineHardware: HardwareId[]`, `offlineModels: ModelId[]`) or recomputed each tick? Recommendation: recompute each tick for simplicity — avoids stale state bugs.
+**Decision:** offline status is recomputed each tick. Not stored in `GameState`.
+
+### 2.1 Hype — production multiplier scaled down
+
+Hype is **retained** as a mechanic. It gates investors (unchanged) and multiplies token production. The formula changes only in magnitude:
+
+```
+// OLD
+hypeBonus = 1 + hype × hypeMult
+
+// NEW
+hypeBonus = 1 + hype × 0.05 × hypeMult
+```
+
+The constant `k = 0.05` reduces the per-point contribution from 100% to 5%.
+
+| Scenario | Old multiplier | New multiplier |
+|---|---|---|
+| All milestones, no upgrades (53.5 hype) | 54.5× | 3.7× |
+| + Hype Machine ×2 (107 hype) | 108× | 6.4× |
+| + Go Viral ×5 (267 hype) | 268× | 14.4× |
+| + AGI Safety Theater ×3 hypeMult | 161× | 9.1× |
+
+Hype Machine and Go Viral retain their existing `hypeMilestoneMultiplier` effect type — no change to upgrade definitions. AGI Safety Theater retains its `hypeMultiplier: 3` — no change. Only the engine formula constant changes.
 
 ---
 
@@ -145,7 +168,7 @@ compute = Decimal.min(new Decimal(computeCap), compute);
 
 When tokens are at cap, `tokensPerSecond` still shows the rate — but tokens stop accumulating. Visually display "FULL" indicator.
 
-> ⚠ Open question: Should clicking when at token cap still count toward `totalTokensEarned` (for milestones) even though the token balance doesn't increase? Recommendation: yes — milestone tracking should use `totalTokensEarned`, not current balance. No change needed there.
+**Decision:** Yes — milestone tracking uses `totalTokensEarned`, not current balance. No change needed.
 
 ---
 
@@ -366,13 +389,13 @@ All token-cost upgrades now affect specific models. All funding-cost upgrades no
 - `−X% compute cost` → multiplicative reduction on `computePerSec` base. Multiple cost-reduction upgrades multiply together: −20% and −30% = ×0.80×0.70 = ×0.56 (44% total reduction).
 - `+X% funding/s` → additive multiplier on investor `fundingPerSec`. Same stacking rule: +30%, +50%, +60% = ×2.40 combined.
 
-> ⚠ Open question: the current `allProducerMultiplier` effect type (used by `open_source_everything` and `acquire_startup`) no longer maps cleanly to the new effects. These upgrades need new effect types. The old `UpgradeId` values stay the same; only `effect` changes. Confirm this doesn't break saved games (loaded states apply effects dynamically, not stored). It does not — effects are recomputed from IDs at runtime.
+**Decision:** New effect types needed for `open_source_everything` and `acquire_startup`. Safe — upgrade effects are recomputed from IDs at runtime, not stored in save data.
 
 ### Old upgrade removal / repurposing
 
 The old `clickMultiplier` upgrades (`better_prompts`, `prompt_engineering`, `chain_of_thought`) become `modelMultiplier` effects for specific tiers. The **click mechanic** loses its click-power upgrades. Click now always produces `clickPower = reputationMultiplier` tokens.
 
-> ⚠ Open question: Does removing click multipliers feel bad to players who were using click-heavy strategies? If click power matters, consider keeping one token-cost click upgrade (e.g. a new one). Not scoped here — flag for future work.
+**Decision:** Click upgrades dropped entirely. No replacement.
 
 ---
 
@@ -817,23 +840,22 @@ computeCap?: number;
 totalFundingRunningCost?: number;  // sum of all running costs at current hardware levels
 ```
 
-> ⚠ Open question: Should `tokenCap` and `computeCap` be stored in `GameState` (recomputed each tick) or returned only in `get_available_actions`? Recommendation: compute in `tick()` and store as non-Decimal numbers in `GameState` for easy serialization. This avoids re-deriving them client-side.
+**Decision:** `tokenCap` and `computeCap` computed in `tick()` and stored as plain `number` fields in `GameState`. Avoids re-deriving client-side.
 
 ---
 
-## 12. Open Questions
+## 12. Resolved Decisions
 
-> ⚠ Open question: **Compute offline — discrete or proportional?** The spec calls for discrete (binary on/off per unit). If many model instances exist, the granularity could be jarring (e.g., one Claude Haiku going offline reduces tokens/s by a large step). Consider whether per-unit or per-type offline is better UX. Recommendation: per-unit is more correct and simpler to reason about.
+All open questions closed as of 2026-04-07.
 
-> ⚠ Open question: **Funding deficit on game start.** New players have 0 funding. If they somehow unlock an A100 before any investor, it goes immediately offline. Is the current unlock chain (a100 requires 3 gaming_pcs → requires hype → requires milestones → requires investors) sufficient to ensure funding comes before A100? Verify the actual unlock path in gameplay — it likely is fine given hype gating investors, but confirm.
-
-> ⚠ Open question: **Click upgrades removed.** Better Prompts, Prompt Engineering, Chain of Thought no longer boost clicks. This is a significant change. If click-heavy play is a meaningful strategy, add a replacement click upgrade (e.g. `"GPU Overclocking"` for +50% clickPower). Not in scope here.
-
-> ⚠ Open question: **Saved-game migration.** Existing saves have the old `computePerSec` values and upgrade effects. On load, state is applied to the new engine — upgrade effects are recomputed from IDs, so that's safe. But `compute` accumulated at old rates may be very different from new caps. Consider resetting `compute` to `min(current, newComputeCap)` on first load after the patch. No explicit migration code needed if `tick()` clamps at cap.
-
-> ⚠ Open question: **Hype Machine / Go Viral effects.** The spec converts these from `hypeMilestoneMultiplier` to `modelMultiplier` (all models). This changes their fundamental mechanic — previously they boosted hype earned from milestones; now they boost tokens/s directly. Confirm this is the intended behavior change before implementing.
-
-> ⚠ Open question: **AGI Safety Theater effect.** Currently `hypeMultiplier` (×3 permanent hype boost). The spec changes it to `+50% tokens/s globally` (all models). This removes the hype-amplification purpose entirely. Confirm intended — if hype still matters for investor unlocks, losing this boost may make late-game investor unlocks harder.
+| # | Question | Decision |
+|---|---|---|
+| 1 | Offline tracking: recompute vs store in state | **Recompute each tick.** Avoids stale state bugs. |
+| 2 | Clicks at token cap — count toward `totalTokensEarned`? | **Yes.** Milestone tracking uses `totalTokensEarned`, not balance. No change needed. |
+| 3 | Can player buy A100 before having investors? | **Verified safe.** A100 requires 3 Gaming PCs → by that point ~5–15k total tokens earned → m1k + m10k hit → hype ≥ 1.5 → Seed investor already unlocked. Buying A100 before Angel investor (hype ≥ 3 = m100k) is possible but it goes offline immediately — intended "you're not ready" signal. |
+| 4 | Click upgrades removed — add replacement? | **Drop entirely.** No replacement click upgrade. |
+| 5 | Hype Machine / Go Viral — convert to token multipliers? | **Keep as hype multipliers.** Hype is retained as a mechanic. Hype Machine (×2 milestone hype gain) and Go Viral (×5 milestone hype gain) remain unchanged. |
+| 6 | AGI Safety Theater — change from hypeMultiplier? | **Keep as hypeMultiplier (×3).** Hype is kept; AGI Safety Theater's role as a late-game hype amplifier is retained. With the new hype scaling constant k=0.05, its effective contribution is reasonable (see §2.1). |
 
 ---
 
