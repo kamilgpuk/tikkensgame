@@ -3,6 +3,7 @@
  * ESM-compatible: jest.unstable_mockModule + dynamic imports.
  */
 import { jest, it, expect, beforeAll, afterAll, beforeEach } from "@jest/globals";
+import Decimal from "break_eternity.js";
 
 // ─── In-memory DB mock ────────────────────────────────────────────────────────
 
@@ -134,8 +135,8 @@ it("W4: after doClick, next state broadcast has updated totalClicks", async () =
 it("W5: crossing a milestone sends a milestone message", async () => {
   setSession({
     ...createInitialState("w5", "Tester"),
-    totalTokensEarned: 999,
-    compute: 100_000,
+    totalTokensEarned: new Decimal(999),
+    compute: new Decimal(100_000),
     models: { gpt2: 10_000, llama7b: 0, mistral7b: 0, llama70b: 0, claude_haiku: 0, gpt4: 0, agi: 0 },
   });
   startTickLoop();

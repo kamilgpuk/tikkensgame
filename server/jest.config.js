@@ -11,6 +11,7 @@ export default {
     "^.+\\.tsx?$": ["ts-jest", { useESM: true, tsconfig: "./tsconfig.json", isolatedModules: true, diagnostics: false }],
   },
   setupFiles: ["<rootDir>/src/test-env.cjs"],
+  testPathIgnorePatterns: ["<rootDir>/dist/"],
   forceExit: true,
   testTimeout: 15000,
 };

@@ -3,6 +3,7 @@
  * ESM-compatible: uses jest.unstable_mockModule + dynamic imports.
  */
 import { jest, describe, it, expect, beforeEach, afterAll } from "@jest/globals";
+import { deserializeState } from "@ai-hype/shared";
 
 // ─── In-memory DB mock state ──────────────────────────────────────────────────
 
@@ -13,7 +14,10 @@ const mockSaveState = jest.fn(async (state: { playerId: string; [k: string]: unk
   const row = store.get(state.playerId as string);
   if (row) { row.state = { ...state }; }
 });
-const mockLoadState = jest.fn(async (playerId: string) => store.get(playerId)?.state ?? null);
+const mockLoadState = jest.fn(async (playerId: string) => {
+  const raw = store.get(playerId)?.state ?? null;
+  return raw ? deserializeState(raw) : null;
+});
 const mockCreatePlayer = jest.fn(async (playerId: string, playerName: string, pinHash: string) => {
   const nameTaken = Array.from(store.values()).some(r => r.name.toLowerCase() === playerName.toLowerCase());
   store.set(playerId, { id: playerId, name: playerName, pinHash, state: { playerId, playerName } as Record<string, unknown>, score: 0 });
@@ -308,7 +312,7 @@ describe("POST /api/buy/:playerId", () => {
 
 describe("POST /api/prestige/:playerId", () => {
   it("PR1: eligible player → 200, prestige +1", async () => {
-    seedPlayer("pid1", "Alice", "1234", { totalTokensEarned: 2_000_000, tokens: 1_000_000 });
+    seedPlayer("pid1", "Alice", "1234", { totalTokensEarned: 2_000_000, tokens: 1_000_000, funding: 10_000 });
     const res = await supertest(app).post("/api/prestige/pid1");
     expect(res.status).toBe(200);
     expect(res.body.prestigeCount).toBe(1);

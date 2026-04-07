@@ -3,6 +3,12 @@
  * ESM-compatible: jest.unstable_mockModule + dynamic imports.
  */
 import { jest, it, expect, beforeEach, afterAll } from "@jest/globals";
+import Decimal from "break_eternity.js";
+import { deserializeState } from "@ai-hype/shared";
+
+function num(d: Decimal | number): number {
+  return d instanceof Decimal ? d.toNumber() : d;
+}
 
 // ─── In-memory DB mock ────────────────────────────────────────────────────────
 
@@ -11,7 +17,10 @@ const mockSaveState = jest.fn(async (state: { playerId: string }) => {
   const row = mockStore.get(state.playerId);
   if (row) Object.assign(row, state);
 });
-const mockLoadState = jest.fn(async (playerId: string) => mockStore.get(playerId) ?? null);
+const mockLoadState = jest.fn(async (playerId: string) => {
+  const raw = mockStore.get(playerId) ?? null;
+  return raw ? deserializeState(raw) : null;
+});
 const mockCreatePlayer = jest.fn(async () => ({ playerId: "unused", nameTaken: false }));
 const mockFindPlayerByNameAndPin = jest.fn(async () => null as string | null);
 const mockGetLeaderboard = jest.fn(async () => []);
@@ -68,7 +77,7 @@ afterAll(() => {
 it("SS1: loadOrCreateSession for new player creates fresh state and persists to DB", async () => {
   const state = await loadOrCreateSession("p1", "Alice");
   expect(state.playerId).toBe("p1");
-  expect(state.tokens).toBe(0);
+  expect(num(state.tokens)).toBe(0);
   await new Promise(r => setTimeout(r, 50));
   expect(mockSaveState).toHaveBeenCalled();
 });
@@ -76,7 +85,7 @@ it("SS1: loadOrCreateSession for new player creates fresh state and persists to 
 it("SS2: loadOrCreateSession for existing player loads from DB", async () => {
   seedDb("p2", "Bob", { tokens: 500, totalTokensEarned: 500 });
   const state = await loadOrCreateSession("p2", "Bob");
-  expect(state.tokens).toBe(500);
+  expect(num(state.tokens)).toBe(500);
   expect(mockLoadState).toHaveBeenCalledWith("p2");
 });
 
@@ -136,14 +145,14 @@ it("SS7: two players tick independently", async () => {
 
 it("SS8: prestige triggers immediate save with reset state", async () => {
   const eligible = createInitialState("p8", "Grace");
-  setSession({ ...eligible, totalTokensEarned: 2_000_000, tokens: 2_000_000 });
+  setSession({ ...eligible, totalTokensEarned: new Decimal(2_000_000), tokens: new Decimal(2_000_000), funding: new Decimal(10_000) });
   mockSaveState.mockClear();
   doPrestige("p8");
   await new Promise(r => setTimeout(r, 50));
   expect(mockSaveState).toHaveBeenCalled();
-  const saved = (mockSaveState.mock.calls[0] as unknown as [{ prestigeCount: number; tokens: number }])[0];
+  const saved = (mockSaveState.mock.calls[0] as unknown as [{ prestigeCount: number; tokens: Decimal }])[0];
   expect(saved.prestigeCount).toBe(1);
-  expect(saved.tokens).toBe(0);
+  expect(num(saved.tokens)).toBe(0);
 });
 
 it("getOnlineCount tracks active sessions", async () => {
@@ -158,7 +167,7 @@ it("getOnlineCount tracks active sessions", async () => {
 it("getGlobalTokensEarned sums all sessions", async () => {
   const s1 = createInitialState("g1", "G1");
   const s2 = createInitialState("g2", "G2");
-  setSession({ ...s1, totalTokensEarned: 300 });
-  setSession({ ...s2, totalTokensEarned: 700 });
+  setSession({ ...s1, totalTokensEarned: new Decimal(300) });
+  setSession({ ...s2, totalTokensEarned: new Decimal(700) });
   expect(getGlobalTokensEarned()).toBe(1000);
 });

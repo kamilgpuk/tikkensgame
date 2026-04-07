@@ -9,5 +9,8 @@
   },
   "devDependencies": {
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "break_eternity.js": "^2.1.3"
   }
 }

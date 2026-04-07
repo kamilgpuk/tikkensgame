@@ -120,7 +120,7 @@ server.tool(
 
 server.tool("click", "Perform a single manual click to earn tokens", {}, async () => {
   try {
-    const state = await apiPost<{ tokens: number; clickPower: number }>(
+    const state = await apiPost<{ tokens: string; clickPower: string }>(
       `/click/${playerId()}`,
       { n: 1 }
     );
@@ -128,7 +128,7 @@ server.tool("click", "Perform a single manual click to earn tokens", {}, async (
       content: [
         {
           type: "text",
-          text: `Clicked! Tokens: ${state.tokens.toFixed(2)}, Click power: ${state.clickPower.toFixed(2)}`,
+          text: `Clicked! Tokens: ${state.tokens}, Click power: ${state.clickPower}`,
         },
       ],
     };
@@ -152,7 +152,7 @@ server.tool(
   },
   async ({ type, id, quantity }) => {
     try {
-      const state = await apiPost<{ tokens: number; tokensPerSecond: number }>(
+      const state = await apiPost<{ tokens: string; tokensPerSecond: string }>(
         `/buy/${playerId()}`,
         { producerType: type, id, quantity }
       );
@@ -160,7 +160,7 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `Bought ${quantity}x ${id}. Tokens remaining: ${state.tokens.toFixed(2)}, Tokens/s: ${state.tokensPerSecond.toFixed(2)}`,
+            text: `Bought ${quantity}x ${id}. Tokens remaining: ${state.tokens}, Tokens/s: ${state.tokensPerSecond}`,
           },
         ],
       };
@@ -178,12 +178,12 @@ server.tool(
   { id: z.string().describe("Upgrade ID (e.g. 'better_prompts', 'quantization')") },
   async ({ id }) => {
     try {
-      const state = await apiPost<{ tokensPerSecond: number }>(
+      const state = await apiPost<{ tokensPerSecond: string }>(
         `/buy/${playerId()}`,
         { producerType: "upgrade", id }
       );
       return {
-        content: [{ type: "text", text: `Bought upgrade: ${id}. Tokens/s now: ${state.tokensPerSecond.toFixed(2)}` }],
+        content: [{ type: "text", text: `Bought upgrade: ${id}. Tokens/s now: ${state.tokensPerSecond}` }],
       };
     } catch (e) {
       return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };

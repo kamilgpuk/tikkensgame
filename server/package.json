@@ -20,6 +20,7 @@
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@supabase/supabase-js": "^2.39.0",
     "bcryptjs": "^2.4.3",
+    "break_eternity.js": "^2.1.3",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "uuid": "^9.0.1",

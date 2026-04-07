@@ -1,14 +1,17 @@
-export function fmt(n: number): string {
-  if (!isFinite(n) || isNaN(n)) return "0";
-  if (n < 1_000) return n.toFixed(n < 10 ? 1 : 0);
-  if (n < 1_000_000) return (n / 1_000).toFixed(1) + "K";
-  if (n < 1_000_000_000) return (n / 1_000_000).toFixed(1) + "M";
-  if (n < 1e12) return (n / 1_000_000_000).toFixed(1) + "B";
-  if (n < 1e15) return (n / 1e12).toFixed(1) + "T";
-  return n.toExponential(2);
+import Decimal from "break_eternity.js";
+
+export function fmt(n: Decimal | number): string {
+  const d = n instanceof Decimal ? n : new Decimal(n);
+  if (!d.isFinite()) return "0";
+  if (d.lt(1_000)) return d.toNumber().toFixed(d.lt(10) ? 1 : 0);
+  if (d.lt(1_000_000)) return (d.toNumber() / 1_000).toFixed(1) + "K";
+  if (d.lt(1_000_000_000)) return (d.toNumber() / 1_000_000).toFixed(1) + "M";
+  if (d.lt(1e12)) return (d.toNumber() / 1_000_000_000).toFixed(1) + "B";
+  if (d.lt(1e15)) return (d.toNumber() / 1e12).toFixed(1) + "T";
+  return d.toExponential(2);
 }
 
-export function fmtRate(n: number): string {
+export function fmtRate(n: Decimal | number): string {
   return fmt(n) + "/s";
 }
 

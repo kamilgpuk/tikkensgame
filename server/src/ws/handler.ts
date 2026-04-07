@@ -2,7 +2,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import type { IncomingMessage } from "http";
 import type { Server } from "http";
 import type { GameState, MilestoneId, ServerMessage } from "@ai-hype/shared";
-import { MILESTONE_MAP } from "@ai-hype/shared";
+import { MILESTONE_MAP, serializeState } from "@ai-hype/shared";
 import { loadOrCreateSession, setTickCallback, setMilestoneCallback } from "../game/session.js";
 import { getLeaderboard } from "../db/index.js";
 
@@ -11,7 +11,11 @@ const playerSockets = new Map<string, Set<WebSocket>>();
 
 function send(ws: WebSocket, msg: ServerMessage): void {
   if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(msg));
+    // Serialize GameState Decimal fields to strings before JSON transport
+    const wireMsg = msg.type === "state"
+      ? { ...msg, payload: serializeState(msg.payload) }
+      : msg;
+    ws.send(JSON.stringify(wireMsg));
   }
 }
 

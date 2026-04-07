@@ -4,6 +4,7 @@
  * Call __resetStore() in beforeEach/afterEach to isolate tests.
  */
 import { jest } from "@jest/globals";
+import Decimal from "break_eternity.js";
 import type { GameState, LeaderboardEntry } from "@ai-hype/shared";
 
 interface PlayerRow {
@@ -17,8 +18,9 @@ interface PlayerRow {
 let store = new Map<string, PlayerRow>();
 
 function scoreOf(state: GameState): number {
+  const tte = state.totalTokensEarned instanceof Decimal ? state.totalTokensEarned.toNumber() : 0;
   return (
-    (state.totalTokensEarned ?? 0) +
+    tte +
     (state.prestigeCount ?? 0) * 1_000_000 +
     (state.reputation ?? 0) * 500_000
   );
@@ -119,9 +121,9 @@ export const __seedPlayer = (
   const base: GameState = {
     playerId,
     playerName,
-    tokens: 0, compute: 0, hype: 0, funding: 0,
-    totalTokensEarned: 0, totalClicks: 0, prestigeCount: 0, reputation: 0,
-    tokensPerSecond: 0, computePerSecond: 0, fundingPerSecond: 0, clickPower: 1,
+    tokens: new Decimal(0), compute: new Decimal(0), hype: 0, funding: new Decimal(0),
+    totalTokensEarned: new Decimal(0), totalClicks: 0, prestigeCount: 0, reputation: 0,
+    tokensPerSecond: new Decimal(0), computePerSecond: new Decimal(0), fundingPerSecond: new Decimal(0), clickPower: new Decimal(1),
     hardware: { mac_mini: 0, gaming_pc: 0, a100: 0, tpu_pod: 0, gpu_cluster: 0, data_center: 0, hyperscaler: 0 },
     models: { gpt2: 0, llama7b: 0, mistral7b: 0, llama70b: 0, claude_haiku: 0, gpt4: 0, agi: 0 },
     investors: { moms_card: 0, angel: 0, seed: 0, series_a: 0, softbank: 0, saudi_fund: 0 },

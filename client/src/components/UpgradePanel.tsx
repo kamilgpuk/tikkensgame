@@ -17,7 +17,7 @@ export function UpgradePanel({ state, onBuy }: Props) {
       <div className="upgrade-grid">
         {available.map((u) => {
           const canAfford =
-            u.currency === "tokens" ? state.tokens >= u.cost : state.funding >= u.cost;
+            u.currency === "tokens" ? state.tokens.gte(u.cost) : state.funding.gte(u.cost);
           return (
             <button
               key={u.id}

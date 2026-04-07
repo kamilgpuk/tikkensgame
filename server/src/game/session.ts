@@ -204,7 +204,7 @@ export function getOnlineCount(): number {
 export function getGlobalTokensEarned(): number {
   let total = 0;
   for (const state of sessions.values()) {
-    total += state.totalTokensEarned;
+    total += state.totalTokensEarned.toNumber();
   }
   return total;
 }

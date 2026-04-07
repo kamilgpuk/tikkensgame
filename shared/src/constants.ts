@@ -1,3 +1,4 @@
+import Decimal from "break_eternity.js";
 import type {
   HardwareDef,
   ModelDef,
@@ -14,13 +15,13 @@ import type {
 export const COST_SCALE = 1.15; // each additional unit costs base × 1.15^owned
 
 /** Token goal for prestige n (run 0 → 1M, run 1 → 10M, run 2 → 100M…) */
-export function prestigeTokenThreshold(prestigeCount: number): number {
-  return 1_000_000 * Math.pow(10, prestigeCount);
+export function prestigeTokenThreshold(prestigeCount: number): Decimal {
+  return new Decimal(1_000_000).mul(Decimal.pow(10, prestigeCount));
 }
 
 /** Funding required to prestige on run n (0 → 10k, 1 → 50k, 2 → 250k…) */
-export function prestigeFundingThreshold(prestigeCount: number): number {
-  return 10_000 * Math.pow(5, prestigeCount);
+export function prestigeFundingThreshold(prestigeCount: number): Decimal {
+  return new Decimal(10_000).mul(Decimal.pow(5, prestigeCount));
 }
 
 /** Token generation multiplier from reputation (sqrt curve, not linear) */

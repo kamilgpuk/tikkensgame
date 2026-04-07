@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { GameState, LeaderboardEntry } from "@ai-hype/shared";
-import { getFounderTitle } from "@ai-hype/shared";
+import { getFounderTitle, serializeState, deserializeState } from "@ai-hype/shared";
 import { computeScore } from "../game/engine.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "";
@@ -18,9 +18,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
 
 export async function saveState(state: GameState): Promise<void> {
   const score = Math.floor(computeScore(state));
+  const serialized = serializeState(state);
   const { error } = await supabase
     .from("players")
-    .update({ state, score, updated_at: new Date().toISOString() })
+    .update({ state: serialized, score, updated_at: new Date().toISOString() })
     .eq("id", state.playerId);
   if (error) throw new Error(`Supabase update failed: ${error.message}`);
 }
@@ -32,7 +33,7 @@ export async function loadState(playerId: string): Promise<GameState | null> {
     .eq("id", playerId)
     .single();
   if (error || !data) return null;
-  return data.state as GameState;
+  return deserializeState(data.state as Record<string, unknown>);
 }
 
 export async function playerExists(playerId: string): Promise<boolean> {
@@ -117,7 +118,7 @@ export async function getLeaderboard(limit = 20): Promise<LeaderboardEntry[]> {
   if (error || !data) return [];
 
   return data.map((row, i) => {
-    const state = row.state as GameState;
+    const state = deserializeState(row.state as Record<string, unknown>);
     return {
       rank: i + 1,
       playerId: row.id as string,

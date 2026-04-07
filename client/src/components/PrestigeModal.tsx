@@ -9,7 +9,9 @@ interface Props {
 }
 
 export function PrestigeModal({ state, onConfirm, onCancel }: Props) {
-  const reputationGain = Math.floor(Math.log10(Math.max(1, state.totalTokensEarned)));
+  const reputationGain = Math.floor(
+    Math.log10(Math.max(1, state.totalTokensEarned.toNumber()))
+  );
   const newReputation = state.reputation + reputationGain;
   const newTitle = getFounderTitle(state.prestigeCount + 1);
 
@@ -33,7 +35,7 @@ export function PrestigeModal({ state, onConfirm, onCancel }: Props) {
           </div>
           <div className="gain-row warning">
             <span>funding spent</span>
-            <span>{prestigeFundingThreshold(state.prestigeCount).toLocaleString()} F consumed</span>
+            <span>{fmt(prestigeFundingThreshold(state.prestigeCount))} F consumed</span>
           </div>
           <div className="gain-row warning">
             <span>tokens lost</span>

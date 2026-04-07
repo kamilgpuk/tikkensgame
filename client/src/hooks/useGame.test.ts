@@ -101,7 +101,7 @@ describe("useGame hook", () => {
       ws.simulateMessage({ type: "state", payload: fakeState });
     });
 
-    expect(result.current.state?.tokens).toBe(100);
+    expect(result.current.state?.tokens.toNumber()).toBe(100);
   });
 
   // H3: doClick triggers POST and updates state via WS

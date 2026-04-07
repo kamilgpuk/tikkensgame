@@ -20,7 +20,7 @@ const HINTS: { id: string; text: string; condition: (s: GameState) => boolean }[
   {
     id: "hint_first_model",
     text: "watch your tokens/s go up. keep hardware ahead of models.",
-    condition: (s) => s.models.gpt2 >= 1 && s.totalTokensEarned < 500,
+    condition: (s) => s.models.gpt2 >= 1 && s.totalTokensEarned.lt(500),
   },
   {
     id: "hint_first_milestone",

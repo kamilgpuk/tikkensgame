@@ -1,3 +1,4 @@
+import Decimal from "break_eternity.js";
 import {
   GameState,
   HardwareId,
@@ -5,7 +6,6 @@ import {
   InvestorId,
   UpgradeId,
   MilestoneId,
-  ProducerType,
   ActionOption,
   HARDWARE,
   HARDWARE_MAP,
@@ -24,22 +24,25 @@ import {
 
 // ─── Initial state ────────────────────────────────────────────────────────────
 
+const D0 = new Decimal(0);
+const D1 = new Decimal(1);
+
 export function createInitialState(playerId: string, playerName: string): GameState {
   return {
     playerId,
     playerName,
-    tokens: 0,
-    compute: 0,
+    tokens: D0,
+    compute: D0,
     hype: 0,
-    funding: 0,
-    totalTokensEarned: 0,
+    funding: D0,
+    totalTokensEarned: D0,
     totalClicks: 0,
     prestigeCount: 0,
     reputation: 0,
-    tokensPerSecond: 0,
-    computePerSecond: 0,
-    fundingPerSecond: 0,
-    clickPower: 1,
+    tokensPerSecond: D0,
+    computePerSecond: D0,
+    fundingPerSecond: D0,
+    clickPower: D1,
     hardware: {
       mac_mini: 0, gaming_pc: 0, a100: 0, tpu_pod: 0,
       gpu_cluster: 0, data_center: 0, hyperscaler: 0,
@@ -112,73 +115,81 @@ function getHypeMultiplier(state: GameState): number {
 // ─── Rate computation ─────────────────────────────────────────────────────────
 
 export function computeRates(state: GameState): {
-  computePerSecond: number;
-  rawTokensPerSecond: number; // before hype
-  tokensPerSecond: number;
-  fundingPerSecond: number;
-  clickPower: number;
+  computePerSecond: Decimal;
+  rawTokensPerSecond: Decimal; // before hype
+  tokensPerSecond: Decimal;
+  fundingPerSecond: Decimal;
+  clickPower: Decimal;
 } {
   const hwMult = getHardwareMultiplier(state);
   const modelMult = getModelMultiplier(state);
   const hypeMult = getHypeMultiplier(state);
 
   // Compute generated
-  let computeGenerated = 0;
+  let computeGenerated = D0;
   for (const hw of HARDWARE) {
-    computeGenerated += hw.computePerSec * state.hardware[hw.id] * hwMult;
+    computeGenerated = computeGenerated.add(
+      new Decimal(hw.computePerSec * state.hardware[hw.id] * hwMult)
+    );
   }
 
   // Compute consumed by models
-  let computeConsumed = 0;
+  let computeConsumed = D0;
   for (const model of MODELS) {
-    computeConsumed += model.computePerSec * state.models[model.id];
+    computeConsumed = computeConsumed.add(
+      new Decimal(model.computePerSec * state.models[model.id])
+    );
   }
 
-  const computePerSecond = computeGenerated - computeConsumed;
+  const computePerSecond = computeGenerated.sub(computeConsumed);
 
   // Compute utilisation ratio (0..1). Models slow if compute is starved.
   const totalComputeNeeded = computeConsumed;
-  const computeAvailable = Math.max(0, state.compute + computeGenerated);
-  const utilisation = totalComputeNeeded > 0
-    ? Math.min(1, computeAvailable / (totalComputeNeeded || 1))
-    : 1;
+  const computeAvailable = Decimal.max(D0, state.compute.add(computeGenerated));
+  const utilisation = totalComputeNeeded.gt(0)
+    ? Decimal.min(D1, computeAvailable.div(totalComputeNeeded))
+    : D1;
 
   // Raw tokens/s (before hype)
-  let rawTokens = 0;
+  let rawTokens = D0;
   for (const model of MODELS) {
-    rawTokens += model.tokensPerSec * state.models[model.id] * modelMult * utilisation;
+    rawTokens = rawTokens.add(
+      new Decimal(model.tokensPerSec * state.models[model.id] * modelMult).mul(utilisation)
+    );
   }
 
-  // Reputation bonus
+  // Reputation bonus (stays as number — result is small)
   const reputationBonus = reputationMultiplier(state.reputation);
 
-  // Hype token multiplier: (1 + hype * hypeMult)
+  // Hype token multiplier: (1 + hype * hypeMult) — stays as number
   const hypeBonus = 1 + state.hype * hypeMult;
 
-  const tokensPerSecond = rawTokens * reputationBonus * hypeBonus;
+  const tokensPerSecond = rawTokens.mul(reputationBonus).mul(hypeBonus);
 
   // Funding
-  let fundingPerSecond = 0;
+  let fundingPerSecond = D0;
   for (const inv of INVESTORS) {
-    fundingPerSecond += inv.fundingPerSec * state.investors[inv.id];
+    fundingPerSecond = fundingPerSecond.add(
+      new Decimal(inv.fundingPerSec * state.investors[inv.id])
+    );
   }
 
-  const clickPower = getClickMultiplier(state) * reputationBonus;
+  const clickPower = new Decimal(getClickMultiplier(state) * reputationBonus);
 
   return { computePerSecond, rawTokensPerSecond: rawTokens, tokensPerSecond, fundingPerSecond, clickPower };
 }
 
 // ─── Cost helpers ─────────────────────────────────────────────────────────────
 
-export function producerCost(baseCost: number, owned: number, quantity = 1): number {
+export function producerCost(baseCost: number, owned: number, quantity = 1): Decimal {
   // Sum of geometric series: base * (scale^owned + scale^(owned+1) + ... + scale^(owned+qty-1))
   // = base * scale^owned * (scale^qty - 1) / (scale - 1)
-  if (quantity === 1) return baseCost * Math.pow(COST_SCALE, owned);
-  return (
-    baseCost *
-    Math.pow(COST_SCALE, owned) *
-    ((Math.pow(COST_SCALE, quantity) - 1) / (COST_SCALE - 1))
-  );
+  if (quantity === 1) {
+    return new Decimal(baseCost).mul(Decimal.pow(COST_SCALE, owned));
+  }
+  return new Decimal(baseCost)
+    .mul(Decimal.pow(COST_SCALE, owned))
+    .mul(Decimal.pow(COST_SCALE, quantity).sub(1).div(COST_SCALE - 1));
 }
 
 // ─── Unlock checks ────────────────────────────────────────────────────────────
@@ -218,14 +229,15 @@ export function tick(state: GameState, elapsedMs: number): TickResult {
   const elapsed = elapsedMs / 1000;
   const rates = computeRates(state);
 
-  const newTokens = rates.tokensPerSecond * elapsed;
-  const newCompute = rates.computePerSecond * elapsed;
-  const newFunding = rates.fundingPerSecond * elapsed;
+  const newTokens = rates.tokensPerSecond.mul(elapsed);
+  const newCompute = rates.computePerSecond.mul(elapsed);
+  const newFunding = rates.fundingPerSecond.mul(elapsed);
 
-  const tokens = Math.max(0, state.tokens + newTokens);
-  const compute = Math.max(0, state.compute + newCompute);
-  const funding = state.funding + newFunding;
-  const totalTokensEarned = state.totalTokensEarned + Math.max(0, newTokens);
+  const tokens = Decimal.max(D0, state.tokens.add(newTokens));
+  const compute = Decimal.max(D0, state.compute.add(newCompute));
+  const funding = state.funding.add(newFunding);
+  const newTokensClamped = Decimal.max(D0, newTokens);
+  const totalTokensEarned = state.totalTokensEarned.add(newTokensClamped);
 
   // Check milestones
   const newMilestones: MilestoneId[] = [];
@@ -236,7 +248,7 @@ export function tick(state: GameState, elapsedMs: number): TickResult {
   for (const milestone of MILESTONES) {
     if (
       !milestonesHit.includes(milestone.id) &&
-      totalTokensEarned >= milestone.totalTokensRequired
+      totalTokensEarned.gte(milestone.totalTokensRequired)
     ) {
       milestonesHit.push(milestone.id);
       newMilestones.push(milestone.id);
@@ -266,11 +278,11 @@ export function tick(state: GameState, elapsedMs: number): TickResult {
 
 export function click(state: GameState, n = 1): GameState {
   const rates = computeRates(state);
-  const gained = rates.clickPower * n;
+  const gained = rates.clickPower.mul(n);
   return {
     ...state,
-    tokens: state.tokens + gained,
-    totalTokensEarned: state.totalTokensEarned + gained,
+    tokens: state.tokens.add(gained),
+    totalTokensEarned: state.totalTokensEarned.add(gained),
     totalClicks: state.totalClicks + n,
     clickPower: rates.clickPower,
   };
@@ -284,14 +296,14 @@ export function buyHardware(state: GameState, id: HardwareId, qty = 1): BuyResul
   if (!isHardwareUnlocked(id, state)) return { ok: false, error: "Not unlocked" };
   const def = HARDWARE_MAP[id];
   const cost = producerCost(def.baseCost, state.hardware[id], qty);
-  if (state.tokens < cost) return { ok: false, error: "Not enough tokens" };
+  if (state.tokens.lt(cost)) return { ok: false, error: "Not enough tokens" };
   const hardware = { ...state.hardware, [id]: state.hardware[id] + qty };
   const rates = computeRates({ ...state, hardware });
   return {
     ok: true,
     state: {
       ...state,
-      tokens: state.tokens - cost,
+      tokens: state.tokens.sub(cost),
       hardware,
       tokensPerSecond: rates.tokensPerSecond,
       computePerSecond: rates.computePerSecond,
@@ -305,14 +317,14 @@ export function buyModel(state: GameState, id: ModelId, qty = 1): BuyResult {
   if (!isModelUnlocked(id, state)) return { ok: false, error: "Not unlocked" };
   const def = MODEL_MAP[id];
   const cost = producerCost(def.baseCost, state.models[id], qty);
-  if (state.tokens < cost) return { ok: false, error: "Not enough tokens" };
+  if (state.tokens.lt(cost)) return { ok: false, error: "Not enough tokens" };
   const models = { ...state.models, [id]: state.models[id] + qty };
   const rates = computeRates({ ...state, models });
   return {
     ok: true,
     state: {
       ...state,
-      tokens: state.tokens - cost,
+      tokens: state.tokens.sub(cost),
       models,
       tokensPerSecond: rates.tokensPerSecond,
       computePerSecond: rates.computePerSecond,
@@ -326,14 +338,14 @@ export function buyInvestor(state: GameState, id: InvestorId, qty = 1): BuyResul
   if (!isInvestorUnlocked(id, state)) return { ok: false, error: "Not unlocked" };
   const def = INVESTOR_MAP[id];
   const cost = producerCost(def.baseCost, state.investors[id], qty);
-  if (state.tokens < cost) return { ok: false, error: "Not enough tokens" };
+  if (state.tokens.lt(cost)) return { ok: false, error: "Not enough tokens" };
   const investors = { ...state.investors, [id]: state.investors[id] + qty };
   const rates = computeRates({ ...state, investors });
   return {
     ok: true,
     state: {
       ...state,
-      tokens: state.tokens - cost,
+      tokens: state.tokens.sub(cost),
       investors,
       tokensPerSecond: rates.tokensPerSecond,
       computePerSecond: rates.computePerSecond,
@@ -346,17 +358,17 @@ export function buyInvestor(state: GameState, id: InvestorId, qty = 1): BuyResul
 export function buyUpgrade(state: GameState, id: UpgradeId): BuyResult {
   if (state.upgrades.includes(id)) return { ok: false, error: "Already purchased" };
   const def = UPGRADE_MAP[id];
-  if (def.currency === "tokens" && state.tokens < def.cost) {
+  if (def.currency === "tokens" && state.tokens.lt(def.cost)) {
     return { ok: false, error: "Not enough tokens" };
   }
-  if (def.currency === "funding" && state.funding < def.cost) {
+  if (def.currency === "funding" && state.funding.lt(def.cost)) {
     return { ok: false, error: "Not enough funding" };
   }
   const upgrades = [...state.upgrades, id];
   const newState = {
     ...state,
-    tokens: def.currency === "tokens" ? state.tokens - def.cost : state.tokens,
-    funding: def.currency === "funding" ? state.funding - def.cost : state.funding,
+    tokens: def.currency === "tokens" ? state.tokens.sub(def.cost) : state.tokens,
+    funding: def.currency === "funding" ? state.funding.sub(def.cost) : state.funding,
     upgrades,
   };
   const rates = computeRates(newState);
@@ -377,15 +389,18 @@ export function buyUpgrade(state: GameState, id: UpgradeId): BuyResult {
 export function prestige(state: GameState): BuyResult {
   const tokenGoal = prestigeTokenThreshold(state.prestigeCount);
   const fundingGoal = prestigeFundingThreshold(state.prestigeCount);
-  if (state.totalTokensEarned < tokenGoal) {
-    return { ok: false, error: `Need ${tokenGoal.toLocaleString()} total tokens earned` };
+  if (state.totalTokensEarned.lt(tokenGoal)) {
+    return { ok: false, error: `Need ${tokenGoal.toNumber().toLocaleString()} total tokens earned` };
   }
-  if (state.funding < fundingGoal) {
-    return { ok: false, error: `Need ${fundingGoal.toLocaleString()} funding` };
+  if (state.funding.lt(fundingGoal)) {
+    return { ok: false, error: `Need ${fundingGoal.toNumber().toLocaleString()} funding` };
   }
 
   // Reputation gained: log10 of tokens earned at prestige time (scaled)
-  const reputationGain = Math.floor(Math.log10(Math.max(1, state.totalTokensEarned)));
+  // log10 of a Decimal → result is small enough to toNumber() safely
+  const reputationGain = Math.floor(
+    Math.log10(Math.max(1, state.totalTokensEarned.toNumber()))
+  );
   const reputation = state.reputation + reputationGain;
   const prestigeCount = state.prestigeCount + 1;
 
@@ -396,8 +411,8 @@ export function prestige(state: GameState): BuyResult {
       ...fresh,
       reputation,
       prestigeCount,
-      // keep lifetime hype (it's a prestige bonus)
-      hype: state.hype * 0.1, // keep 10% hype on prestige
+      // keep 10% hype on prestige
+      hype: state.hype * 0.1,
       updatedAt: Date.now(),
     },
   };
@@ -412,15 +427,13 @@ export function getAvailableActions(state: GameState): ActionOption[] {
   for (const hw of HARDWARE) {
     if (!isHardwareUnlocked(hw.id, state)) continue;
     const cost = producerCost(hw.baseCost, state.hardware[hw.id]);
-    // Adding one unit of hardware adds compute, which may allow more models
-    // Estimate tokens/s gain as indirect; for simplicity use 0 (it's a multiplier prerequisite)
     actions.push({
       type: "hardware",
       id: hw.id,
       name: hw.name,
-      cost,
+      cost: cost.toNumber(),
       currency: "tokens",
-      affordable: state.tokens >= cost,
+      affordable: state.tokens.gte(cost),
       tokensPerSecGain: 0,
       paybackSeconds: null,
       unlocksNew: checkHardwareUnlocks(hw.id, state),
@@ -435,14 +448,14 @@ export function getAvailableActions(state: GameState): ActionOption[] {
     const hypeBonus = 1 + state.hype;
     const reputationBonus = reputationMultiplier(state.reputation);
     const tokensPerSecGain = model.tokensPerSec * modelMult * hypeBonus * reputationBonus * hwMult;
-    const paybackSeconds = tokensPerSecGain > 0 ? cost / tokensPerSecGain : null;
+    const paybackSeconds = tokensPerSecGain > 0 ? cost.toNumber() / tokensPerSecGain : null;
     actions.push({
       type: "model",
       id: model.id,
       name: model.name,
-      cost,
+      cost: cost.toNumber(),
       currency: "tokens",
-      affordable: state.tokens >= cost,
+      affordable: state.tokens.gte(cost),
       tokensPerSecGain,
       paybackSeconds,
       unlocksNew: false,
@@ -456,9 +469,9 @@ export function getAvailableActions(state: GameState): ActionOption[] {
       type: "investor",
       id: inv.id,
       name: inv.name,
-      cost,
+      cost: cost.toNumber(),
       currency: "tokens",
-      affordable: state.tokens >= cost,
+      affordable: state.tokens.gte(cost),
       tokensPerSecGain: 0,
       paybackSeconds: null,
       unlocksNew: false,
@@ -468,7 +481,7 @@ export function getAvailableActions(state: GameState): ActionOption[] {
   for (const upg of UPGRADES) {
     if (state.upgrades.includes(upg.id)) continue;
     const affordable =
-      upg.currency === "tokens" ? state.tokens >= upg.cost : state.funding >= upg.cost;
+      upg.currency === "tokens" ? state.tokens.gte(upg.cost) : state.funding.gte(upg.cost);
     actions.push({
       type: "upgrade",
       id: upg.id,
@@ -494,7 +507,6 @@ export function getAvailableActions(state: GameState): ActionOption[] {
 }
 
 function checkHardwareUnlocks(id: HardwareId, state: GameState): boolean {
-  // Check if buying one more of this hardware would unlock new things
   const hypothetical = { ...state, hardware: { ...state.hardware, [id]: state.hardware[id] + 1 } };
   for (const model of MODELS) {
     if (!isModelUnlocked(model.id, state) && isModelUnlocked(model.id, hypothetical)) return true;
@@ -505,19 +517,21 @@ function checkHardwareUnlocks(id: HardwareId, state: GameState): boolean {
   return false;
 }
 
-function estimateUpgradeGain(id: UpgradeId, state: GameState, currentTPS: number): number {
+function estimateUpgradeGain(id: UpgradeId, state: GameState, currentTPS: Decimal): number {
   const def = UPGRADE_MAP[id];
   if (state.upgrades.includes(id)) return 0;
   const hypothetical = { ...state, upgrades: [...state.upgrades, id] };
   const newTPS = computeRates(hypothetical).tokensPerSecond;
-  return newTPS - currentTPS;
+  return newTPS.sub(currentTPS).toNumber();
 }
 
 // ─── Score ────────────────────────────────────────────────────────────────────
 
 export function computeScore(state: GameState): number {
+  // Returns a plain number for the DB score column (leaderboard ranking proxy)
+  // Precision loss is acceptable here — score is for display/sorting only
   return (
-    state.totalTokensEarned +
+    state.totalTokensEarned.toNumber() +
     state.prestigeCount * 1_000_000 +
     state.reputation * 500_000
   );

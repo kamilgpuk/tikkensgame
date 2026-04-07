@@ -1,4 +1,5 @@
 import type { GameState } from "@ai-hype/shared";
+import Decimal from "break_eternity.js";
 import {
   HARDWARE,
   MODELS,
@@ -10,8 +11,8 @@ import {
 import type { HardwareId, ModelId, InvestorId } from "@ai-hype/shared";
 import { fmt } from "../lib/format.js";
 
-function scaledCost(baseCost: number, owned: number): number {
-  return baseCost * Math.pow(1.15, owned);
+function scaledCost(baseCost: number, owned: number): Decimal {
+  return new Decimal(baseCost).mul(Decimal.pow(1.15, owned));
 }
 
 function isHardwareUnlocked(id: HardwareId, state: GameState): boolean {
@@ -138,8 +139,8 @@ export function ProducerPanel({ state, onBuy }: Props) {
               key={h.id}
               name={h.name}
               owned={state.hardware[h.id]}
-              cost={scaledCost(h.baseCost, state.hardware[h.id])}
-              canAfford={state.tokens >= scaledCost(h.baseCost, state.hardware[h.id])}
+              cost={scaledCost(h.baseCost, state.hardware[h.id]).toNumber()}
+              canAfford={state.tokens.gte(scaledCost(h.baseCost, state.hardware[h.id]))}
               detail={`+${h.computePerSec} compute/s`}
               unlockHint={hint}
               isLocked={!unlocked}
@@ -165,8 +166,8 @@ export function ProducerPanel({ state, onBuy }: Props) {
               key={m.id}
               name={m.name}
               owned={state.models[m.id]}
-              cost={scaledCost(m.baseCost, state.models[m.id])}
-              canAfford={state.tokens >= scaledCost(m.baseCost, state.models[m.id])}
+              cost={scaledCost(m.baseCost, state.models[m.id]).toNumber()}
+              canAfford={state.tokens.gte(scaledCost(m.baseCost, state.models[m.id]))}
               detail={`+${fmt(m.tokensPerSec)} T/s · −${m.computePerSec} C/s`}
               unlockHint={hint}
               isLocked={!unlocked}
@@ -192,8 +193,8 @@ export function ProducerPanel({ state, onBuy }: Props) {
                 key={i.id}
                 name={i.name}
                 owned={state.investors[i.id]}
-                cost={scaledCost(i.baseCost, state.investors[i.id])}
-                canAfford={state.tokens >= scaledCost(i.baseCost, state.investors[i.id])}
+                cost={scaledCost(i.baseCost, state.investors[i.id]).toNumber()}
+                canAfford={state.tokens.gte(scaledCost(i.baseCost, state.investors[i.id]))}
                 detail={`+$${i.fundingPerSec}/s funding`}
                 unlockHint={hint}
                 isLocked={!unlocked}

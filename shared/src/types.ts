@@ -1,3 +1,6 @@
+import type { default as Decimal } from "break_eternity.js";
+export type { Decimal };
+
 // ─── ID types ────────────────────────────────────────────────────────────────
 
 export type HardwareId =
@@ -115,25 +118,25 @@ export interface GameState {
   playerId: string;
   playerName: string;
 
-  // Current resources
-  tokens: number;
-  compute: number;
-  hype: number;
-  funding: number;
+  // Current resources — Decimal to handle arbitrarily large values
+  tokens: Decimal;
+  compute: Decimal;
+  hype: number;       // bounded ~1600 by finite milestones, safe as number
+  funding: Decimal;
 
   // Lifetime stats
-  totalTokensEarned: number;
-  totalClicks: number;
-  prestigeCount: number;
-  reputation: number;
+  totalTokensEarned: Decimal;
+  totalClicks: number;    // integer count, safe as number
+  prestigeCount: number;  // small integer, safe as number
+  reputation: number;     // grows as log10, max ~50, safe as number
 
-  // Computed rates (per second) — derived, stored for convenience
-  tokensPerSecond: number;
-  computePerSecond: number;
-  fundingPerSecond: number;
-  clickPower: number;
+  // Computed rates (per second) — Decimal (products of many multipliers)
+  tokensPerSecond: Decimal;
+  computePerSecond: Decimal;
+  fundingPerSecond: Decimal;
+  clickPower: Decimal;
 
-  // Owned counts
+  // Owned counts — small integers, safe as number
   hardware: Record<HardwareId, number>;
   models: Record<ModelId, number>;
   investors: Record<InvestorId, number>;
@@ -145,6 +148,30 @@ export interface GameState {
   milestonesHit: MilestoneId[];
 
   updatedAt: number; // unix ms
+}
+
+// Wire/DB format — Decimal fields serialized as strings for JSON transport
+export interface SerializedGameState {
+  playerId: string;
+  playerName: string;
+  tokens: string;
+  compute: string;
+  hype: number;
+  funding: string;
+  totalTokensEarned: string;
+  totalClicks: number;
+  prestigeCount: number;
+  reputation: number;
+  tokensPerSecond: string;
+  computePerSecond: string;
+  fundingPerSecond: string;
+  clickPower: string;
+  hardware: Record<HardwareId, number>;
+  models: Record<ModelId, number>;
+  investors: Record<InvestorId, number>;
+  upgrades: UpgradeId[];
+  milestonesHit: MilestoneId[];
+  updatedAt: number;
 }
 
 // ─── API shapes ───────────────────────────────────────────────────────────────

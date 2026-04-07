@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { GameState, LeaderboardEntry, ServerMessage } from "@ai-hype/shared";
+import { deserializeState } from "@ai-hype/shared";
 import { api } from "../lib/api.js";
 
 const PLAYER_ID_KEY = "ai_hype_player_id";
@@ -44,7 +45,7 @@ export function useGame() {
 
     ws.onmessage = (evt) => {
       const msg = JSON.parse(evt.data as string) as ServerMessage;
-      if (msg.type === "state") setState(msg.payload);
+      if (msg.type === "state") setState(deserializeState(msg.payload as unknown as Record<string, unknown>));
       if (msg.type === "leaderboard") setLeaderboard(msg.payload);
       if (msg.type === "mcp_action") {
         setMcpFlash(true);
