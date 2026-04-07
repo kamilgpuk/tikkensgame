@@ -48,7 +48,7 @@ export function HowToPlay({ onClose }: Props) {
               <li>hit token milestones → earn <strong>Hype</strong> (watch the events log).</li>
               <li>once hype ≥ 1, <strong>investors</strong> unlock and generate Funding.</li>
               <li>spend Funding on upgrades for large multipliers.</li>
-              <li>hit 1M total tokens → <strong>Launch a Startup</strong>.</li>
+              <li>hit 1M total tokens → <strong>Go IPO</strong>.</li>
               <li>repeat — each prestige makes you faster.</li>
             </ol>
           </section>
@@ -62,7 +62,7 @@ export function HowToPlay({ onClose }: Props) {
           </section>
 
           <section>
-            <h4>prestige — launch a startup</h4>
+            <h4>prestige — go IPO</h4>
             <p><strong>resets:</strong> tokens, compute, hardware, models, investors, upgrades.</p>
             <p><strong>keeps:</strong> prestige count, reputation, 10% of hype.</p>
             <p><strong>earns:</strong> reputation = log₁₀(tokens at prestige time).</p>

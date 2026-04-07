@@ -195,7 +195,7 @@ server.tool(
 
 server.tool(
   "prestige",
-  "Launch a Startup — reset resources but keep Reputation for a permanent multiplier",
+  "Go IPO — reset resources but keep Reputation for a permanent multiplier",
   {},
   async () => {
     try {

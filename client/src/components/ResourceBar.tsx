@@ -67,7 +67,7 @@ export function ResourceBar({ state }: Props) {
         />
       )}
       {canPrestige && (
-        <div className="prestige-hint">★ ready to launch a startup</div>
+        <div className="prestige-hint">★ ready to go IPO</div>
       )}
     </div>
   );

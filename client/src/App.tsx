@@ -82,7 +82,7 @@ export default function App() {
                 disabled={state.funding < prestigeFundingThreshold(state.prestigeCount)}
                 title={state.funding < prestigeFundingThreshold(state.prestigeCount) ? `Need ${prestigeFundingThreshold(state.prestigeCount).toLocaleString()} funding` : undefined}
               >
-                ★ launch a startup
+                ★ go IPO
               </button>
             )}
           </div>
