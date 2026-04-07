@@ -14,9 +14,23 @@ import {
   isHardwareUnlocked,
   isModelUnlocked,
   isInvestorUnlocked,
+  resolveActiveHardware,
+  resolveActiveModels,
+  getModelTokenMultiplier,
+  getModelComputeCostMultiplier,
+  getInvestorMultiplier,
 } from "./engine.js";
 import Decimal from "break_eternity.js";
-import { prestigeTokenThreshold, prestigeFundingThreshold, reputationMultiplier, type UpgradeId } from "@ai-hype/shared";
+import {
+  prestigeTokenThreshold,
+  prestigeFundingThreshold,
+  reputationMultiplier,
+  computeTokenCap,
+  computeComputeCap,
+  modelTotalComputeCost,
+  modelNextInstanceComputeCost,
+  type UpgradeId,
+} from "@ai-hype/shared";
 
 /** Unwrap a Decimal (or number) to number for assertions */
 function num(d: Decimal | number): number {
@@ -449,16 +463,18 @@ describe("computeRates — compute utilization", () => {
     expect(num(half.tokensPerSecond)).toBeCloseTo(num(full.tokensPerSecond) * 0.5, 3);
   });
 
-  it("U4: adding hardware increases token rate", () => {
+  it("U4: adding enough hardware unlocks more model instances", () => {
     const s = createInitialState("id", "p");
+    // 1 mac_mini (0.5/s) + 2 gpt2 (need 1.09/s): only 1 gpt2 active → TPS=3
     const before = computeRates({
       ...s, compute: new Decimal(0),
       hardware: { ...s.hardware, mac_mini: 1 },
       models: { ...s.models, gpt2: 2 },
     });
+    // 3 mac_mini (1.5/s) + 2 gpt2 (need 1.09/s): both gpt2 active → TPS=6
     const after = computeRates({
       ...s, compute: new Decimal(0),
-      hardware: { ...s.hardware, mac_mini: 2 },
+      hardware: { ...s.hardware, mac_mini: 3 },
       models: { ...s.models, gpt2: 2 },
     });
     expect(num(after.tokensPerSecond)).toBeGreaterThan(num(before.tokensPerSecond));
@@ -526,13 +542,13 @@ describe("computeRates — upgrade stacking", () => {
 describe("tick — milestone progression", () => {
   it("M1: crossing multiple milestones in a single tick fires them all", () => {
     const s = createInitialState("id", "p");
-    // Very high tokens/s to cross m1k, m10k, m100k in one tick
+    // Start just below m1m (999,950 tokens earned). 100 gpt2 with 1e9 compute → ~300 tokens/s.
+    // In 1s: earn ~300 more → totalTokensEarned ~1,000,250 → all of m1k, m10k, m100k, m1m fire.
     const s2 = {
       ...s,
-      totalTokensEarned: new Decimal(0),
-      compute: new Decimal(100_000),
-      models: { ...s.models, gpt2: 1000 }, // ~3M tokens/s with hype
-      hype: 1000,
+      totalTokensEarned: new Decimal(999_950),
+      compute: new Decimal(1e9),
+      models: { ...s.models, gpt2: 100 },
     };
     const { newMilestones } = tick(s2, 1000);
     expect(newMilestones).toContain("m1k");
@@ -555,26 +571,33 @@ describe("tick — milestone progression", () => {
     if (!prestigeResult.ok) return;
     // After prestige, milestonesHit is empty
     expect(prestigeResult.state.milestonesHit).toHaveLength(0);
-    // Cross m1k again
+    // Cross m1k again: start near threshold with enough production
     const s3 = {
       ...prestigeResult.state,
-      compute: new Decimal(100_000),
+      totalTokensEarned: new Decimal(999),
+      compute: new Decimal(1e9),
       models: { ...prestigeResult.state.models, gpt2: 100 },
     };
+    // 100 gpt2 active (all fit in 1e9 compute), TPS = 300/s → +300 in 1s → total 1299 > 1000 ✓
     const { newMilestones } = tick(s3, 1000);
     expect(newMilestones).toContain("m1k");
   });
 
   it("M3: all 8 milestones crossed yields correct total hype", () => {
     const s = createInitialState("id", "p");
-    // 500M gpt2 × 3 tokens/s = 1.5B/s; tick 30s → 45B earned; state.compute large for full utilisation
+    // Start just below the last milestone (10B), produce enough to cross it
+    // Then check all 8 milestones fired across multiple ticks OR use a single mega tick
+    // Simplest: pre-set totalTokensEarned to just below 10B, produce anything positive
     const s2 = {
       ...s,
-      totalTokensEarned: new Decimal(0),
-      compute: new Decimal(1e14),
-      models: { ...s.models, gpt2: 500_000_000 },
+      // Start having already earned tokens for milestones up to m1b (1B)
+      // but not yet hit any milestones
+      totalTokensEarned: new Decimal(9_999_999_999), // just below 10B (m10b threshold)
+      compute: new Decimal(1e9),
+      models: { ...s.models, gpt2: 100 },
     };
-    const { newMilestones, state } = tick(s2, 30_000);
+    // In 1 tick of 1s, earn ~300 more → totalTokensEarned > 10B → all 8 milestones fire
+    const { newMilestones, state } = tick(s2, 1000);
     expect(newMilestones.length).toBe(8);
     // Total hype = 0.5+1+2+3+5+8+13+21 = 53.5
     expect(state.hype).toBeCloseTo(53.5, 5);
@@ -765,5 +788,273 @@ describe("computeScore — formula verification", () => {
     const p1 = { ...base, prestigeCount: 1 };
     const p2 = { ...base, prestigeCount: 2 };
     expect(computeScore(p2)).toBeGreaterThan(computeScore(p1));
+  });
+});
+
+// ─── Rebalance: Storage Caps ──────────────────────────────────────────────────
+
+describe("computeTokenCap", () => {
+  const zeroState = () => createInitialState("id", "p");
+
+  it("TC-01: 0 everything → 1000", () => {
+    const s = zeroState();
+    expect(computeTokenCap(s)).toBe(1_000);
+  });
+
+  it("TC-02: 3 mac_mini → 1000 + 900 = 1900", () => {
+    const s = { ...zeroState(), hardware: { ...zeroState().hardware, mac_mini: 3 } };
+    expect(computeTokenCap(s)).toBe(1_900);
+  });
+
+  it("TC-03: 3 mac_mini + 1 gaming_pc + 1 gpt2 → 3400", () => {
+    const s = zeroState();
+    const hw = { ...s.hardware, mac_mini: 3, gaming_pc: 1 };
+    const mdl = { ...s.models, gpt2: 1 };
+    expect(computeTokenCap({ hardware: hw, models: mdl })).toBe(3_400);
+  });
+
+  it("TC-04: 1 claude_haiku → tokenCap = 4000", () => {
+    const s = zeroState();
+    const mdl = { ...s.models, claude_haiku: 1 };
+    expect(computeTokenCap({ hardware: s.hardware, models: mdl })).toBe(4_000);
+  });
+});
+
+describe("computeComputeCap", () => {
+  const zeroHW = () => createInitialState("id", "p").hardware;
+
+  it("TC-05: 0 everything → 50", () => {
+    expect(computeComputeCap({ hardware: zeroHW() })).toBe(50);
+  });
+
+  it("TC-06: 2 a100 + 1 tpu_pod → 3050", () => {
+    const hw = { ...zeroHW(), a100: 2, tpu_pod: 1 };
+    expect(computeComputeCap({ hardware: hw })).toBe(3_050);
+  });
+
+  it("TC-07: 1 hyperscaler → 300050", () => {
+    const hw = { ...zeroHW(), hyperscaler: 1 };
+    expect(computeComputeCap({ hardware: hw })).toBe(300_050);
+  });
+
+  it("TC-08: tokens capped at tokenCap in tick", () => {
+    const s = createInitialState("id", "p");
+    // No hardware, no models → tokenCap = 1000 (base).
+    // Manually set tokensPerSecond to a large value via models and a big compute store.
+    // We test: set tokens to cap-1 = 999, earn a lot in 1s → tokens stays at cap.
+    const s2 = {
+      ...s,
+      tokens: new Decimal(999),
+      compute: new Decimal(1_000),
+      // No models, no hardware → tokenCap = 1000. But no production either!
+      // Instead test: put tokens exactly at cap and check they don't grow.
+    };
+    // With no hardware/models, TPS = 0 → tokens unchanged at 999 < 1000.
+    // Instead: use getAvailableActions pattern - just verify tick clamps.
+    // Best approach: check that tokens don't EXCEED the cap when starting above it.
+    const s3 = {
+      ...s,
+      tokens: new Decimal(2_000), // above cap of 1000
+      compute: new Decimal(0),
+    };
+    const { state } = tick(s3, 1000);
+    // tokenCap = 1000. Tokens should be clamped down.
+    expect(state.tokens.lte(1_000)).toBe(true);
+  });
+});
+
+// ─── Rebalance: Resolve Active Hardware ──────────────────────────────────────
+
+describe("resolveActiveHardware", () => {
+  const baseState = () => createInitialState("id", "p");
+
+  it("TC-12: 1 a100, fundingPerSec=0 → a100 offline", () => {
+    const s = { ...baseState(), hardware: { ...baseState().hardware, a100: 1 } };
+    const active = resolveActiveHardware(s, 0);
+    expect(active.a100).toBe(0);
+  });
+
+  it("TC-11: 1 a100, fundingPerSec=1 → a100 online", () => {
+    const s = { ...baseState(), hardware: { ...baseState().hardware, a100: 1 } };
+    const active = resolveActiveHardware(s, 1);
+    expect(active.a100).toBe(1);
+  });
+
+  it("TC-14: 3 a100 (need 3/s), fundingPerSec=2 → 2 active", () => {
+    const s = { ...baseState(), hardware: { ...baseState().hardware, a100: 3 } };
+    const active = resolveActiveHardware(s, 2);
+    expect(active.a100).toBe(2);
+  });
+
+  it("TC-15: 1 tpu_pod (4) + 3 a100 (3), fundingPerSec=3 → tpu_pod=0, a100=3", () => {
+    const s = { ...baseState(), hardware: { ...baseState().hardware, tpu_pod: 1, a100: 3 } };
+    const active = resolveActiveHardware(s, 3);
+    expect(active.tpu_pod).toBe(0);
+    expect(active.a100).toBe(3);
+  });
+
+  it("TC-16: 1 tpu_pod + 3 a100, fundingPerSec=7 → all active", () => {
+    const s = { ...baseState(), hardware: { ...baseState().hardware, tpu_pod: 1, a100: 3 } };
+    const active = resolveActiveHardware(s, 7);
+    expect(active.tpu_pod).toBe(1);
+    expect(active.a100).toBe(3);
+  });
+
+  it("TC-17: 1 hyperscaler (800) + 1 data_center (120), fundingPerSec=120 → hyperscaler offline", () => {
+    const s = { ...baseState(), hardware: { ...baseState().hardware, hyperscaler: 1, data_center: 1 } };
+    const active = resolveActiveHardware(s, 120);
+    expect(active.hyperscaler).toBe(0);
+    expect(active.data_center).toBe(1);
+  });
+
+  it("TC-18: 0 high-end hardware, fundingPerSec=0 → mac_mini active", () => {
+    const s = { ...baseState(), hardware: { ...baseState().hardware, mac_mini: 3 } };
+    const active = resolveActiveHardware(s, 0);
+    expect(active.mac_mini).toBe(3);
+  });
+});
+
+// ─── Rebalance: Model Compute Scaling ────────────────────────────────────────
+
+describe("modelTotalComputeCost", () => {
+  it("TC-19: 0 count → 0", () => {
+    expect(modelTotalComputeCost(0.5, 0)).toBe(0);
+  });
+
+  it("TC-19b: 1 gpt2 → 0.5", () => {
+    expect(modelTotalComputeCost(0.5, 1)).toBeCloseTo(0.5, 5);
+  });
+
+  it("TC-20: 2 gpt2 → 1.09", () => {
+    expect(modelTotalComputeCost(0.5, 2)).toBeCloseTo(1.09, 2);
+  });
+
+  it("TC-21: 3 gpt2 → ~1.786", () => {
+    expect(modelTotalComputeCost(0.5, 3)).toBeCloseTo(1.786, 2);
+  });
+
+  it("TC-24: 1 agi (base=200) → 200", () => {
+    expect(modelTotalComputeCost(200, 1)).toBeCloseTo(200, 5);
+  });
+
+  it("TC-25: 2 agi → 436", () => {
+    expect(modelTotalComputeCost(200, 2)).toBeCloseTo(200 + 236, 0);
+  });
+
+  it("TC-27: 1 gpt4 with flash_attention (factor=0.75) → 18.75", () => {
+    expect(modelTotalComputeCost(25, 1, 0.75)).toBeCloseTo(18.75, 5);
+  });
+
+  it("TC-28: 1 llama7b with quantization (0.8) + open_source (0.8) → 1.28", () => {
+    expect(modelTotalComputeCost(2, 1, 0.8 * 0.8)).toBeCloseTo(1.28, 5);
+  });
+});
+
+describe("modelNextInstanceComputeCost", () => {
+  it("TC-22: gpt2 with 0 owned → 0.5", () => {
+    expect(modelNextInstanceComputeCost(0.5, 0)).toBeCloseTo(0.5, 5);
+  });
+
+  it("TC-23: gpt2 with 2 owned → 0.5 × 1.18² ≈ 0.6962", () => {
+    expect(modelNextInstanceComputeCost(0.5, 2)).toBeCloseTo(0.5 * 1.18 * 1.18, 4);
+  });
+
+  it("nextInstanceCost for agi with 1 owned → 200 × 1.18", () => {
+    expect(modelNextInstanceComputeCost(200, 1)).toBeCloseTo(200 * 1.18, 5);
+  });
+});
+
+// ─── Rebalance: Upgrade Multipliers ──────────────────────────────────────────
+
+describe("getModelTokenMultiplier", () => {
+  const baseState = () => createInitialState("id", "p");
+
+  it("TC-36: better_prompts → gpt2 multiplier = 1.40", () => {
+    const s = { ...baseState(), upgrades: ["better_prompts" as const] };
+    expect(getModelTokenMultiplier(s, "gpt2")).toBeCloseTo(1.4, 5);
+  });
+
+  it("TC-37: better_prompts → mistral7b multiplier = 1.0 (not affected)", () => {
+    const s = { ...baseState(), upgrades: ["better_prompts" as const] };
+    expect(getModelTokenMultiplier(s, "mistral7b")).toBeCloseTo(1.0, 5);
+  });
+
+  it("TC-38: rlhf + better_prompts → gpt2 multiplier = 1.80 (additive)", () => {
+    const s = { ...baseState(), upgrades: ["rlhf" as const, "better_prompts" as const] };
+    expect(getModelTokenMultiplier(s, "gpt2")).toBeCloseTo(1.80, 5);
+  });
+});
+
+describe("getModelComputeCostMultiplier", () => {
+  const baseState = () => createInitialState("id", "p");
+
+  it("TC-26: quantization on gpt2 → unaffected (1.0)", () => {
+    const s = { ...baseState(), upgrades: ["quantization" as const] };
+    expect(getModelComputeCostMultiplier(s, "gpt2")).toBeCloseTo(1.0, 5);
+  });
+
+  it("quantization on llama7b → 0.80", () => {
+    const s = { ...baseState(), upgrades: ["quantization" as const] };
+    expect(getModelComputeCostMultiplier(s, "llama7b")).toBeCloseTo(0.8, 5);
+  });
+
+  it("quantization + open_source_everything on llama7b → 0.64", () => {
+    const s = { ...baseState(), upgrades: ["quantization" as const, "open_source_everything" as const] };
+    expect(getModelComputeCostMultiplier(s, "llama7b")).toBeCloseTo(0.64, 5);
+  });
+
+  it("TC-40: flash_attention + constitutional_ai on gpt4 → 25 × 0.75 × 0.70 = 13.125 total cost", () => {
+    const s = { ...baseState(), upgrades: ["flash_attention" as const, "constitutional_ai" as const] };
+    const mult = getModelComputeCostMultiplier(s, "gpt4");
+    expect(mult).toBeCloseTo(0.75 * 0.70, 5);
+    // Total compute for 1 gpt4: 25 × mult
+    expect(modelTotalComputeCost(25, 1, mult)).toBeCloseTo(13.125, 3);
+  });
+});
+
+describe("getInvestorMultiplier", () => {
+  const baseState = () => createInitialState("id", "p");
+
+  it("hire_interns → 1.30", () => {
+    const s = { ...baseState(), upgrades: ["hire_interns" as const] };
+    expect(getInvestorMultiplier(s)).toBeCloseTo(1.30, 5);
+  });
+
+  it("TC-39: hire_interns + poach_from_google + acquire_startup → 2.40", () => {
+    const s = {
+      ...baseState(),
+      upgrades: ["hire_interns" as const, "poach_from_google" as const, "acquire_startup" as const],
+    };
+    expect(getInvestorMultiplier(s)).toBeCloseTo(2.40, 5);
+  });
+});
+
+// ─── Rebalance: Hype Formula ──────────────────────────────────────────────────
+
+describe("hype formula (k=0.05)", () => {
+  it("hype=0 → hypeBonus=1 (no multiplier)", () => {
+    const s = createInitialState("id", "p");
+    const s2 = {
+      ...s,
+      compute: new Decimal(1e9),
+      models: { ...s.models, gpt2: 1 },
+      hype: 0,
+    };
+    const rates = computeRates(s2);
+    // tokensPerSecond = rawTokens × 1 (reputation=0, hypeBonus=1)
+    expect(num(rates.tokensPerSecond)).toBeCloseTo(3, 5);
+  });
+
+  it("hype=20 → hypeBonus = 1 + 20×0.05 = 2.0", () => {
+    const s = createInitialState("id", "p");
+    const s2 = {
+      ...s,
+      compute: new Decimal(1e9),
+      models: { ...s.models, gpt2: 1 },
+      hype: 20,
+    };
+    const rates = computeRates(s2);
+    // rawTokens = 3, hypeBonus = 1 + 20×0.05×1 = 2.0
+    expect(num(rates.tokensPerSecond)).toBeCloseTo(6, 5);
   });
 });
