@@ -184,52 +184,77 @@ export function resolveActiveHardware(
 /**
  * Returns active model instance counts after compute-based offline logic.
  * Most compute-expensive instances go offline first when compute is insufficient.
+ * Uses an efficient approach: for each model type, binary-search for max active count.
  */
 export function resolveActiveModels(
   state: GameState,
   computeAvailable: number,
   upgrades: GameState["upgrades"]
 ): Record<ModelId, number> {
-  const active: Record<ModelId, number> = { ...state.models };
-
-  // Compute total consumed with current upgrade multipliers
-  function totalConsumed(): number {
-    let total = 0;
-    for (const model of MODELS) {
-      if (active[model.id] > 0) {
-        const costMult = getModelComputeCostMultiplier({ ...state, upgrades }, model.id);
-        total += modelTotalComputeCost(model.computePerSec, active[model.id], costMult);
-      }
-    }
-    return total;
+  if (computeAvailable <= 0) {
+    // No compute — all models offline
+    const zero: Record<ModelId, number> = {} as Record<ModelId, number>;
+    for (const m of MODELS) zero[m.id] = 0;
+    return zero;
   }
 
-  if (computeAvailable >= totalConsumed()) return active;
+  // Build a list of all model types sorted by their per-instance cost DESC
+  // (most expensive model type gets cut first)
+  const modelsByExpense = [...MODELS].sort((a, b) => {
+    const costA = getModelComputeCostMultiplier({ ...state, upgrades }, a.id) * a.computePerSec;
+    const costB = getModelComputeCostMultiplier({ ...state, upgrades }, b.id) * b.computePerSec;
+    return costB - costA;
+  });
 
-  // Build list of all active instances sorted by current compute cost DESC
-  // Each iteration: find the most expensive active instance type and take one offline
-  while (totalConsumed() > computeAvailable) {
-    let mostExpensiveModel: ModelId | null = null;
-    let highestCost = -1;
+  // First pass: compute total needed
+  let totalNeeded = 0;
+  const costMults: Record<ModelId, number> = {} as Record<ModelId, number>;
+  for (const model of MODELS) {
+    costMults[model.id] = getModelComputeCostMultiplier({ ...state, upgrades }, model.id);
+    totalNeeded += modelTotalComputeCost(model.computePerSec, state.models[model.id], costMults[model.id]);
+  }
 
-    for (const model of MODELS) {
-      if (active[model.id] > 0) {
-        const costMult = getModelComputeCostMultiplier({ ...state, upgrades }, model.id);
-        // Cost of the LAST instance (highest index = most expensive)
-        const lastInstanceCost = modelNextInstanceComputeCost(
-          model.computePerSec,
-          active[model.id] - 1,
-          costMult
-        );
-        if (lastInstanceCost > highestCost) {
-          highestCost = lastInstanceCost;
-          mostExpensiveModel = model.id;
+  if (computeAvailable >= totalNeeded) {
+    return { ...state.models };
+  }
+
+  // Greedily reduce: take the most expensive model type offline first (binary search per type)
+  // Budget starts at computeAvailable; we allocate as much as possible to cheaper models first
+  const active: Record<ModelId, number> = {} as Record<ModelId, number>;
+  for (const m of MODELS) active[m.id] = state.models[m.id];
+
+  let remaining = computeAvailable;
+
+  // For each model type (most expensive first), binary-search how many can run
+  for (const model of modelsByExpense) {
+    const owned = active[model.id];
+    if (owned === 0) continue;
+
+    const costMult = costMults[model.id];
+    const fullCost = modelTotalComputeCost(model.computePerSec, owned, costMult);
+
+    if (fullCost <= remaining) {
+      // All can run
+      remaining -= fullCost;
+    } else if (remaining <= 0) {
+      active[model.id] = 0;
+    } else {
+      // Binary search: find max k such that modelTotalComputeCost(base, k, mult) <= remaining
+      let lo = 0;
+      let hi = owned;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        const cost = modelTotalComputeCost(model.computePerSec, mid, costMult);
+        if (cost <= remaining) {
+          lo = mid;
+        } else {
+          hi = mid - 1;
         }
       }
+      const cost = modelTotalComputeCost(model.computePerSec, lo, costMult);
+      active[model.id] = lo;
+      remaining -= cost;
     }
-
-    if (mostExpensiveModel === null) break;
-    active[mostExpensiveModel]--;
   }
 
   return active;

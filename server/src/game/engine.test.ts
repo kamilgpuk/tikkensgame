@@ -90,7 +90,7 @@ describe("computeRates", () => {
     const s = createInitialState("id", "p");
     const s2 = { ...s, hardware: { ...s.hardware, mac_mini: 2 } };
     const rates = computeRates(s2);
-    expect(num(rates.computePerSecond)).toBe(2); // 2 × 1 compute/s
+    expect(num(rates.computePerSecond)).toBeCloseTo(1, 5); // 2 × 0.5 compute/s
   });
 
   it("model generates tokens when compute is available", () => {
@@ -252,14 +252,16 @@ describe("buyInvestor", () => {
 });
 
 describe("buyUpgrade", () => {
-  it("applies click multiplier", () => {
+  it("applies model token multiplier (better_prompts)", () => {
     const s = createInitialState("id", "p");
     const s2 = { ...s, tokens: new Decimal(10_000) };
     const result = buyUpgrade(s2, "better_prompts");
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.state.upgrades).toContain("better_prompts");
-      expect(num(result.state.clickPower)).toBe(2);
+      // better_prompts now gives +40% tokens/s to gpt2/llama7b (not a click upgrade)
+      // clickPower remains 1 (reputation=0)
+      expect(num(result.state.clickPower)).toBe(1);
     }
   });
 
@@ -466,26 +468,22 @@ describe("computeRates — compute utilization", () => {
 // ─── 2.1.3 Upgrade Stacking ───────────────────────────────────────────────────
 
 describe("computeRates — upgrade stacking", () => {
-  it("S1: quantization (×2) + flash_attention (×3) hardware upgrades = ×6 compute", () => {
+  it("S1: mac_mini generates 0.5 compute/s (new rebalanced value)", () => {
     const s = createInitialState("id", "p");
     const base = {
       ...s,
-      hardware: { ...s.hardware, mac_mini: 1 }, // 1 compute/s base
+      hardware: { ...s.hardware, mac_mini: 1 }, // 0.5 compute/s base
     };
-    const withUpgrades = { ...base, upgrades: ["quantization" as const, "flash_attention" as const] };
-    const rates = computeRates(withUpgrades);
-    // 1 mac_mini × 1 compute/s × 2 × 3 = 6
-    expect(num(rates.computePerSecond)).toBeCloseTo(6, 5);
+    const rates = computeRates(base);
+    // quantization and flash_attention now reduce model compute cost, not hardware multiplier
+    expect(num(rates.computePerSecond)).toBeCloseTo(0.5, 5);
   });
 
-  it("S2: all 3 click upgrades (×2, ×5, ×10) → clickPower = 100", () => {
+  it("S2: click power equals reputation bonus (no click upgrades in new system)", () => {
     const s = createInitialState("id", "p");
-    const s2 = {
-      ...s,
-      upgrades: ["better_prompts" as const, "prompt_engineering" as const, "chain_of_thought" as const],
-    };
-    const rates = computeRates(s2);
-    expect(num(rates.clickPower)).toBe(100); // 1 * 2 * 5 * 10 (rep=0, so reputationBonus=1)
+    const rates = computeRates(s);
+    // clickPower = reputationMultiplier(0) = 1
+    expect(num(rates.clickPower)).toBe(1);
   });
 
   it("S3: hype_machine multiplier doubles hype gain from milestone", () => {
@@ -504,22 +502,22 @@ describe("computeRates — upgrade stacking", () => {
     expect(stateWith.hype).toBeGreaterThan(stateWithout.hype);
   });
 
-  it("S4: reputation bonus stacks with model multiplier upgrade", () => {
+  it("S4: reputation bonus stacks with model multiplier upgrade (rlhf → all models)", () => {
     const s = createInitialState("id", "p");
-    // 1 gpt2 (3 tokens/s), mixture_of_experts (×2 model), reputation=2 (×2 bonus)
+    // 1 gpt2 (3 tokens/s), rlhf (+40% all models), reputation=2
     const s2 = {
       ...s,
       compute: new Decimal(100_000),
       models: { ...s.models, gpt2: 1 },
-      upgrades: ["mixture_of_experts" as const],
+      upgrades: ["rlhf" as const],
       reputation: 2,
     };
     const rates = computeRates(s2);
-    // rawTokens = 3 × 2 (modelMult) × 1 (utilisation) = 6
+    // rawTokens = 3 × 1.4 (rlhf additive) = 4.2
     // reputationBonus = reputationMultiplier(2) = 1 + sqrt(2) × 1.5 ≈ 3.121
-    // hypeBonus = 1 + 0 = 1
-    // tokensPerSecond = 6 × reputationMultiplier(2) × 1
-    expect(num(rates.tokensPerSecond)).toBeCloseTo(6 * reputationMultiplier(2), 5);
+    // hypeBonus = 1 + 0 × 0.05 = 1
+    // tokensPerSecond = 4.2 × reputationMultiplier(2) × 1
+    expect(num(rates.tokensPerSecond)).toBeCloseTo(4.2 * reputationMultiplier(2), 5);
   });
 });
 
