@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>T'kkens</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0a0a0a;
+      --fg:      #e0e0e0;
+      --green:   #00cc44;
+      --muted:   #555;
+      --dim:     #333;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: "Courier New", Courier, monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 40px 24px;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    /* ── header ── */
+    .title {
+      color: var(--green);
+      font-size: 1.1rem;
+      font-weight: bold;
+      letter-spacing: 0.1em;
+    }
+    .version { color: var(--muted); }
+    .divider { color: var(--dim); margin: 10px 0; }
+
+    /* ── prompt lines ── */
+    .prompt { color: var(--green); }
+    .prompt-line { margin: 4px 0; }
+
+    /* ── cursor blink ── */
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 14px;
+      background: var(--green);
+      vertical-align: middle;
+      margin-left: 2px;
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    /* ── buttons ── */
+    .actions { margin: 20px 0; display: flex; gap: 16px; flex-wrap: wrap; }
+    .btn {
+      color: var(--green);
+      border: 1px solid var(--green);
+      background: transparent;
+      font-family: inherit;
+      font-size: inherit;
+      padding: 4px 14px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn:hover { background: var(--green); color: var(--bg); }
+    .btn-dim {
+      color: var(--muted);
+      border-color: var(--muted);
+    }
+    .btn-dim:hover { background: var(--muted); color: var(--bg); }
+
+    /* ── expandable section ── */
+    .expand-block { display: none; margin: 16px 0; }
+    .expand-block.open { display: block; }
+    .expand-block pre {
+      color: var(--fg);
+      white-space: pre-wrap;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: 1.7;
+    }
+    .expand-block pre .label { color: var(--green); }
+    .expand-block pre .muted { color: var(--muted); }
+
+    /* ── leaderboard ── */
+    .section-title {
+      color: var(--muted);
+      margin: 28px 0 6px;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    .lb-row {
+      display: flex;
+      gap: 16px;
+      padding: 3px 0;
+      border-bottom: 1px solid var(--dim);
+      font-size: 0.9rem;
+    }
+    .lb-row:last-child { border-bottom: none; }
+    .lb-rank  { color: var(--muted); width: 20px; flex-shrink: 0; }
+    .lb-name  { flex: 1; }
+    .lb-score { color: var(--green); width: 70px; text-align: right; }
+    .lb-title { color: var(--muted); width: 160px; text-align: right; font-size: 0.8rem; }
+    .lb-empty { color: var(--muted); padding: 4px 0; }
+
+    /* ── stats ── */
+    .stats { margin-top: 20px; color: var(--muted); font-size: 0.85rem; }
+    .stats span { color: var(--fg); }
+
+    /* ── footer ── */
+    .footer {
+      margin-top: 40px;
+      color: var(--dim);
+      font-size: 0.75rem;
+      border-top: 1px solid var(--dim);
+      padding-top: 12px;
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 24px 16px; font-size: 13px; }
+      .lb-title { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="title">T'KKENS <span class="version">v0.1</span></div>
+  <div class="divider">────────────────────────────────────────────</div>
+
+  <div class="prompt-line"><span class="prompt">&gt;</span> idle clicker. generate tokens. build AGI.</div>
+  <div class="prompt-line"><span class="prompt">&gt;</span> inspired by <a style="color:inherit" href="https://kittensgame.com" target="_blank">kittensgame.com</a>. but make it AI.</div>
+  <div class="prompt-line"><span class="prompt">&gt;</span> play yourself — or connect Claude via MCP and watch it <em>destroy</em> the leaderboard.<span class="cursor"></span></div>
+
+  <div class="actions">
+    <a class="btn" href="/play">[ play ]</a>
+    <button class="btn btn-dim" onclick="toggleHow()">[ how it works ]</button>
+    <a class="btn btn-dim" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank">[ support on patreon ]</a>
+  </div>
+
+  <div class="expand-block" id="how-block">
+    <pre>
+<span class="label">WHAT IS THIS</span>
+  click [generate] to earn tokens.
+  buy hardware  → generates compute passively.
+  buy models    → consumes compute, generates tokens/s.
+  earn hype     → multiplies all token output.
+  get investors → generates funding for upgrades.
+  hit 1M tokens → launch a startup (prestige).
+  repeat. get faster. reach AGI.
+
+<span class="label">THE MCP THING</span>
+  the game exposes an MCP server.
+  point Claude at it and it plays for you.
+  it reads game state, buys things, strategizes.
+  it shows up on the leaderboard as a real player.
+  <span class="muted">→ type [mcp] in the game to see setup instructions.</span>
+
+<span class="label">PRESTIGE</span>
+  once you hit 1M total tokens earned, you can
+  "launch a startup" — resets resources but earns
+  permanent Reputation, which multiplies everything.
+  the real game starts at prestige 2.
+    </pre>
+  </div>
+
+  <div class="section-title">LEADERBOARD</div>
+  <div id="leaderboard"><div class="lb-empty">loading...</div></div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="footer">
+    open source &nbsp;·&nbsp;
+    <a style="color:inherit" href="https://github.com/kamilgpuk/tikkensgame">github.com/kamilgpuk/tikkensgame</a>
+    &nbsp;·&nbsp;
+    <a style="color:inherit" href="https://kamilpuk.com" target="_blank">kamilpuk.com</a>
+  </div>
+
+  <script>
+    function toggleHow() {
+      const block = document.getElementById('how-block');
+      const btn = document.querySelector('button.btn-dim');
+      const open = block.classList.toggle('open');
+      btn.textContent = open ? '[ close ]' : '[ how it works ]';
+    }
+
+    function fmt(n) {
+      if (n < 1e3)  return n.toFixed(0);
+      if (n < 1e6)  return (n / 1e3).toFixed(1)  + 'K';
+      if (n < 1e9)  return (n / 1e6).toFixed(1)  + 'M';
+      if (n < 1e12) return (n / 1e9).toFixed(1)  + 'B';
+      if (n < 1e15) return (n / 1e12).toFixed(1) + 'T';
+      return n.toExponential(2);
+    }
+
+    async function refresh() {
+      try {
+        const res = await fetch('/api/stats');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        // leaderboard
+        const lb = document.getElementById('leaderboard');
+        if (!data.topPlayers || data.topPlayers.length === 0) {
+          lb.innerHTML = '<div class="lb-empty">— be the first</div>';
+        } else {
+          lb.innerHTML = data.topPlayers.map(p => `
+            <div class="lb-row">
+              <span class="lb-rank">${p.rank}</span>
+              <span class="lb-name">${esc(p.playerName)}</span>
+              <span class="lb-score">${fmt(p.score)}</span>
+              <span class="lb-title">${esc(p.title)}</span>
+            </div>
+          `).join('');
+        }
+
+        // stats
+        const statsEl = document.getElementById('stats');
+        statsEl.innerHTML =
+          `tokens generated: <span>${fmt(data.globalTokensEarned)}</span>` +
+          ` &nbsp;·&nbsp; players online: <span>${data.playersOnline}</span>`;
+
+      } catch (_) { /* server not up yet, silently retry */ }
+    }
+
+    function esc(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    refresh();
+    setInterval(refresh, 10_000);
+  </script>
+</body>
+</html>
