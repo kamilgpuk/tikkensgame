@@ -105,6 +105,15 @@ export function useGame() {
     await api.prestige(playerId).catch(() => null);
   }, [playerId]);
 
+  const logout = useCallback(() => {
+    wsRef.current?.close();
+    localStorage.removeItem(PLAYER_ID_KEY);
+    localStorage.removeItem(PLAYER_NAME_KEY);
+    setPlayerId(null);
+    setPlayerName("");
+    setState(null);
+  }, []);
+
   return {
     playerId,
     playerName,
@@ -115,6 +124,7 @@ export function useGame() {
     mcpFlash,
     register,
     login,
+    logout,
     doClick,
     buy,
     doPrestige,

@@ -17,7 +17,7 @@ import { fmt } from "./lib/format.js";
 type Tab = "game" | "leaderboard" | "mcp";
 
 export default function App() {
-  const { playerId, playerName, state, leaderboard, milestones, connected, mcpFlash, register, login, doClick, buy, doPrestige } =
+  const { playerId, playerName, state, leaderboard, milestones, connected, mcpFlash, register, login, logout, doClick, buy, doPrestige } =
     useGame();
   const hint = useFirstTimeHints(state);
   const [showPrestige, setShowPrestige] = useState(false);
@@ -53,6 +53,7 @@ export default function App() {
             <button className={tab === "leaderboard" ? "active" : ""} onClick={() => setTab("leaderboard")}>board</button>
             <button className={tab === "mcp" ? "active" : ""} onClick={() => setTab("mcp")}>mcp</button>
             <button onClick={() => setShowHelp(true)}>[?]</button>
+            <button onClick={logout} title="Log out">out</button>
           </nav>
         </div>
       </header>
