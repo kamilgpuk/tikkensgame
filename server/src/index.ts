@@ -20,7 +20,7 @@ app.use(express.json());
 app.use("/api", router);
 
 // Landing page at /
-const LANDING = path.join(__dirname, "../../landing.html");
+const LANDING = path.join(__dirname, "landing.html");
 app.get("/", (_req, res) => res.sendFile(LANDING));
 
 // React game app at /play (and all sub-paths)

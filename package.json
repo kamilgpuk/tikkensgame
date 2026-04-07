@@ -4,7 +4,7 @@
   "workspaces": ["client", "server", "shared"],
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
-    "build": "npm run build --workspace=shared && npm run build --workspace=server && npm run build --workspace=client",
+    "build": "npm run build --workspace=shared && npm run build --workspace=server && npm run build --workspace=client && cp landing.html server/dist/landing.html",
     "start": "node server/dist/index.js",
     "test": "npm run test --workspace=server && npm run test --workspace=client"
   },
