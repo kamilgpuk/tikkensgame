@@ -104,7 +104,7 @@ server.tool("get_game_state", "Get the full current game state", {}, async () =>
 
 server.tool(
   "get_available_actions",
-  "Get all available actions with cost, tokens/s gain, and payback period. Use this to decide what to buy.",
+  "Get all available actions with cost, tokens/s gain, and payback period. Use this to decide what to buy. Includes prestige (Go IPO) when eligible — if affordable=true call the prestige tool.",
   {},
   async () => {
     try {
@@ -195,18 +195,18 @@ server.tool(
 
 server.tool(
   "prestige",
-  "Go IPO — reset resources but keep Reputation for a permanent multiplier",
+  "Go IPO — reset resources but keep Reputation for a permanent multiplier. Only call when get_available_actions shows type=prestige with affordable=true.",
   {},
   async () => {
     try {
-      const state = await apiPost<{ prestigeCount: number; reputation: number }>(
+      const state = await apiPost<{ prestigeCount: number; reputation: number; tokensPerSecond: string }>(
         `/prestige/${playerId()}`
       );
       return {
         content: [
           {
             type: "text",
-            text: `Prestige! You are now a ${state.prestigeCount}x founder. Reputation: ${state.reputation}`,
+            text: `IPO complete! You are now a ${state.prestigeCount}x founder. Reputation: ${state.reputation}. Tokens/s: ${state.tokensPerSecond}`,
           },
         ],
       };

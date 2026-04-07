@@ -495,6 +495,30 @@ export function getAvailableActions(state: GameState): ActionOption[] {
     });
   }
 
+  // Add prestige if eligible
+  const tokenThreshold = prestigeTokenThreshold(state.prestigeCount);
+  const fundingThreshold = prestigeFundingThreshold(state.prestigeCount);
+  const prestigeEligible =
+    state.totalTokensEarned.gte(tokenThreshold) && state.funding.gte(fundingThreshold);
+  const reputationGain = Math.floor(
+    Math.log10(Math.max(1, state.totalTokensEarned.toNumber()))
+  );
+  const newReputation = state.reputation + reputationGain;
+  const newMultiplier = 1 + Math.sqrt(newReputation) * 1.5;
+  actions.push({
+    type: "prestige",
+    id: "prestige",
+    name: "Go IPO",
+    cost: fundingThreshold.toNumber(),
+    currency: "funding",
+    affordable: prestigeEligible,
+    tokensPerSecGain: 0,
+    paybackSeconds: null,
+    unlocksNew: true,
+    reputationGain,
+    newMultiplier,
+  });
+
   return actions.sort((a, b) => {
     // Sort: affordable first, then by payback period
     if (a.affordable && !b.affordable) return -1;

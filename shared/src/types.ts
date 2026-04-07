@@ -183,7 +183,7 @@ export interface BuyRequest {
 }
 
 export interface ActionOption {
-  type: "hardware" | "model" | "investor" | "upgrade";
+  type: "hardware" | "model" | "investor" | "upgrade" | "prestige";
   id: string;
   name: string;
   cost: number;
@@ -192,6 +192,8 @@ export interface ActionOption {
   tokensPerSecGain: number;
   paybackSeconds: number | null;
   unlocksNew: boolean;
+  reputationGain?: number;
+  newMultiplier?: number;
 }
 
 export interface LeaderboardEntry {
