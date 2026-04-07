@@ -64,6 +64,8 @@ export interface HardwareDef {
   id: HardwareId;
   name: string;
   computePerSec: number;
+  fundingRunningCost: number; // funding/s consumed to keep this unit running (0 for entry-level)
+  costScale: number; // price scaling ratio per additional unit (e.g. 1.25)
   baseCost: number;
   unlockCondition: { type: "start" } | { type: "ownHardware"; id: HardwareId; qty: number };
 }
@@ -71,8 +73,10 @@ export interface HardwareDef {
 export interface ModelDef {
   id: ModelId;
   name: string;
-  computePerSec: number; // consumed
+  // Base compute/s for the 1st instance. Each additional instance costs ×1.18 more (geometric scaling).
+  computePerSec: number;
   tokensPerSec: number;
+  costScale: number; // price scaling ratio per additional unit (1.30 for all models)
   baseCost: number;
   unlockCondition:
     | { type: "start" }
@@ -84,6 +88,7 @@ export interface InvestorDef {
   id: InvestorId;
   name: string;
   fundingPerSec: number;
+  costScale: number; // price scaling ratio per additional unit (1.20 for all investors)
   baseCost: number;
   unlockCondition: { type: "hype"; min: number };
 }
@@ -100,7 +105,9 @@ export interface UpgradeDef {
 export type UpgradeEffect =
   | { type: "clickMultiplier"; factor: number }
   | { type: "hardwareMultiplier"; factor: number }
-  | { type: "modelMultiplier"; factor: number }
+  | { type: "modelMultiplier"; factor: number; modelIds?: ModelId[] }
+  | { type: "modelComputeMultiplier"; factor: number; modelIds?: ModelId[] }
+  | { type: "investorMultiplier"; factor: number }
   | { type: "allProducerMultiplier"; factor: number }
   | { type: "hypeMilestoneMultiplier"; factor: number }
   | { type: "hypeMultiplier"; factor: number };
@@ -141,6 +148,10 @@ export interface GameState {
   models: Record<ModelId, number>;
   investors: Record<InvestorId, number>;
 
+  // Storage caps — plain numbers (not Decimal); recomputed each tick
+  tokenCap: number;
+  computeCap: number;
+
   // Purchased upgrades
   upgrades: UpgradeId[];
 
@@ -166,6 +177,8 @@ export interface SerializedGameState {
   computePerSecond: string;
   fundingPerSecond: string;
   clickPower: string;
+  tokenCap: number;
+  computeCap: number;
   hardware: Record<HardwareId, number>;
   models: Record<ModelId, number>;
   investors: Record<InvestorId, number>;
@@ -194,6 +207,14 @@ export interface ActionOption {
   unlocksNew: boolean;
   reputationGain?: number;
   newMultiplier?: number;
+  // Hardware-specific
+  computePerSecGain?: number;
+  fundingRunningCost?: number;
+  isOnline?: boolean;
+  offlineUnitsCount?: number;
+  // Model-specific
+  nextInstanceComputeCost?: number;
+  totalComputeConsumed?: number;
 }
 
 export interface LeaderboardEntry {

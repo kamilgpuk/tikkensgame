@@ -124,6 +124,7 @@ export const __seedPlayer = (
     tokens: new Decimal(0), compute: new Decimal(0), hype: 0, funding: new Decimal(0),
     totalTokensEarned: new Decimal(0), totalClicks: 0, prestigeCount: 0, reputation: 0,
     tokensPerSecond: new Decimal(0), computePerSecond: new Decimal(0), fundingPerSecond: new Decimal(0), clickPower: new Decimal(1),
+    tokenCap: 1_000, computeCap: 50,
     hardware: { mac_mini: 0, gaming_pc: 0, a100: 0, tpu_pod: 0, gpu_cluster: 0, data_center: 0, hyperscaler: 0 },
     models: { gpt2: 0, llama7b: 0, mistral7b: 0, llama70b: 0, claude_haiku: 0, gpt4: 0, agi: 0 },
     investors: { moms_card: 0, angel: 0, seed: 0, series_a: 0, softbank: 0, saudi_fund: 0 },

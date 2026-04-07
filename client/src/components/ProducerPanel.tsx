@@ -7,12 +7,13 @@ import {
   HARDWARE_MAP,
   MODEL_MAP,
   INVESTOR_MAP,
+  modelNextInstanceComputeCost,
 } from "@ai-hype/shared";
 import type { HardwareId, ModelId, InvestorId } from "@ai-hype/shared";
 import { fmt } from "../lib/format.js";
 
-function scaledCost(baseCost: number, owned: number): Decimal {
-  return new Decimal(baseCost).mul(Decimal.pow(1.15, owned));
+function scaledCost(baseCost: number, owned: number, costScale: number): Decimal {
+  return new Decimal(baseCost).mul(Decimal.pow(costScale, owned));
 }
 
 function isHardwareUnlocked(id: HardwareId, state: GameState): boolean {
@@ -84,6 +85,50 @@ function isNextHardware(id: HardwareId, state: GameState): boolean {
   return false;
 }
 
+/**
+ * Estimate how many hardware units of a given type are offline due to funding deficit.
+ * We replicate the offline logic here (client-side approximation).
+ */
+function computeHardwareOffline(state: GameState): Record<HardwareId, number> {
+  // Estimate funding/s from investor counts
+  let rawFunding = 0;
+  for (const inv of INVESTORS) {
+    rawFunding += inv.fundingPerSec * state.investors[inv.id];
+  }
+
+  const active: Record<HardwareId, number> = { ...state.hardware };
+  let totalFundingNeeded = 0;
+  for (const hw of HARDWARE) {
+    if (hw.fundingRunningCost > 0) {
+      totalFundingNeeded += active[hw.id] * hw.fundingRunningCost;
+    }
+  }
+
+  if (rawFunding >= totalFundingNeeded) {
+    // All online — offline count is 0
+    const offline: Record<HardwareId, number> = {} as Record<HardwareId, number>;
+    for (const hw of HARDWARE) offline[hw.id] = 0;
+    return offline;
+  }
+
+  const expensiveFirst = HARDWARE
+    .filter(hw => hw.fundingRunningCost > 0)
+    .sort((a, b) => b.fundingRunningCost - a.fundingRunningCost);
+
+  for (const hw of expensiveFirst) {
+    while (active[hw.id] > 0 && totalFundingNeeded > rawFunding) {
+      active[hw.id]--;
+      totalFundingNeeded -= hw.fundingRunningCost;
+    }
+  }
+
+  const offline: Record<HardwareId, number> = {} as Record<HardwareId, number>;
+  for (const hw of HARDWARE) {
+    offline[hw.id] = state.hardware[hw.id] - active[hw.id];
+  }
+  return offline;
+}
+
 interface RowProps {
   name: string;
   owned: number;
@@ -93,10 +138,11 @@ interface RowProps {
   unlockHint: string | null;
   isLocked: boolean;
   isClose: boolean;
+  offlineCount?: number;
   onBuy: () => void;
 }
 
-function ProducerRow({ name, owned, cost, canAfford, detail, unlockHint, isLocked, isClose, onBuy }: RowProps) {
+function ProducerRow({ name, owned, cost, canAfford, detail, unlockHint, isLocked, isClose, offlineCount, onBuy }: RowProps) {
   if (isLocked && !isClose) return null;
 
   return (
@@ -110,7 +156,14 @@ function ProducerRow({ name, owned, cost, canAfford, detail, unlockHint, isLocke
       </div>
       {!isLocked && (
         <div className="producer-right">
-          {owned > 0 && <span className="producer-owned">×{owned}</span>}
+          {owned > 0 && (
+            <span className="producer-owned">
+              ×{owned}
+              {offlineCount != null && offlineCount > 0 && (
+                <span className="offline-badge"> [{offlineCount} offline]</span>
+              )}
+            </span>
+          )}
           <button className="buy-btn" disabled={!canAfford} onClick={onBuy}>
             {fmt(cost)} T
           </button>
@@ -126,6 +179,8 @@ interface Props {
 }
 
 export function ProducerPanel({ state, onBuy }: Props) {
+  const offlineByHw = computeHardwareOffline(state);
+
   return (
     <div className="producer-panel">
       <section>
@@ -134,17 +189,22 @@ export function ProducerPanel({ state, onBuy }: Props) {
           const unlocked = isHardwareUnlocked(h.id, state);
           const hint = hardwareUnlockHint(h.id, state);
           const close = !unlocked && isNextHardware(h.id, state);
+          const offlineCount = offlineByHw[h.id];
+          const detail = h.fundingRunningCost > 0
+            ? `▶ ${h.computePerSec} compute/s · 💸 ${h.fundingRunningCost} funding/s`
+            : `▶ ${h.computePerSec} compute/s`;
           return (
             <ProducerRow
               key={h.id}
               name={h.name}
               owned={state.hardware[h.id]}
-              cost={scaledCost(h.baseCost, state.hardware[h.id]).toNumber()}
-              canAfford={state.tokens.gte(scaledCost(h.baseCost, state.hardware[h.id]))}
-              detail={`+${h.computePerSec} compute/s`}
+              cost={scaledCost(h.baseCost, state.hardware[h.id], h.costScale).toNumber()}
+              canAfford={state.tokens.gte(scaledCost(h.baseCost, state.hardware[h.id], h.costScale))}
+              detail={detail}
               unlockHint={hint}
               isLocked={!unlocked}
               isClose={close}
+              offlineCount={offlineCount}
               onBuy={() => onBuy("hardware", h.id)}
             />
           );
@@ -161,14 +221,16 @@ export function ProducerPanel({ state, onBuy }: Props) {
           const lastUnlockedIdx = MODELS.findIndex((x) => x.id === (unlockedModels[unlockedModels.length - 1]?.id));
           const myIdx = MODELS.findIndex((x) => x.id === m.id);
           const isNext = !unlocked && myIdx === lastUnlockedIdx + 1;
+          const nextComputeCost = modelNextInstanceComputeCost(m.computePerSec, state.models[m.id]);
+          const detail = `+${fmt(m.tokensPerSec)} T/s · ⚡ ${nextComputeCost.toFixed(2)} C/s (next)`;
           return (
             <ProducerRow
               key={m.id}
               name={m.name}
               owned={state.models[m.id]}
-              cost={scaledCost(m.baseCost, state.models[m.id]).toNumber()}
-              canAfford={state.tokens.gte(scaledCost(m.baseCost, state.models[m.id]))}
-              detail={`+${fmt(m.tokensPerSec)} T/s · −${m.computePerSec} C/s`}
+              cost={scaledCost(m.baseCost, state.models[m.id], m.costScale).toNumber()}
+              canAfford={state.tokens.gte(scaledCost(m.baseCost, state.models[m.id], m.costScale))}
+              detail={detail}
               unlockHint={hint}
               isLocked={!unlocked}
               isClose={isNext}
@@ -193,8 +255,8 @@ export function ProducerPanel({ state, onBuy }: Props) {
                 key={i.id}
                 name={i.name}
                 owned={state.investors[i.id]}
-                cost={scaledCost(i.baseCost, state.investors[i.id]).toNumber()}
-                canAfford={state.tokens.gte(scaledCost(i.baseCost, state.investors[i.id]))}
+                cost={scaledCost(i.baseCost, state.investors[i.id], i.costScale).toNumber()}
+                canAfford={state.tokens.gte(scaledCost(i.baseCost, state.investors[i.id], i.costScale))}
                 detail={`+$${i.fundingPerSec}/s funding`}
                 unlockHint={hint}
                 isLocked={!unlocked}

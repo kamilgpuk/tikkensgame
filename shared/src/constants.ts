@@ -12,7 +12,67 @@ import type {
   MilestoneId,
 } from "./types.js";
 
-export const COST_SCALE = 1.15; // each additional unit costs base × 1.15^owned
+// COST_SCALE removed — each producer now has its own costScale field (Stage 5)
+
+// ─── Model compute scaling ────────────────────────────────────────────────────
+// Each additional model instance costs ×1.18 more compute/s than the previous one.
+export const COMPUTE_SCALE_PER_INSTANCE = 1.18;
+
+/**
+ * Total compute/s consumed by `count` instances of a model.
+ * Uses geometric sum: effectiveBase × (1.18^count - 1) / 0.18
+ */
+export function modelTotalComputeCost(
+  baseComputePerSec: number,
+  count: number,
+  costMultiplier = 1.0
+): number {
+  if (count === 0) return 0;
+  const effectiveBase = baseComputePerSec * costMultiplier;
+  return effectiveBase * (Math.pow(COMPUTE_SCALE_PER_INSTANCE, count) - 1) / (COMPUTE_SCALE_PER_INSTANCE - 1);
+}
+
+/**
+ * Compute/s cost of the NEXT model instance (instance index `currentCount`, 0-indexed).
+ */
+export function modelNextInstanceComputeCost(
+  baseComputePerSec: number,
+  currentCount: number,
+  costMultiplier = 1.0
+): number {
+  return baseComputePerSec * costMultiplier * Math.pow(COMPUTE_SCALE_PER_INSTANCE, currentCount);
+}
+
+// ─── Storage cap helpers ──────────────────────────────────────────────────────
+
+export const MODEL_TIERS: Record<import("./types.js").ModelId, number> = {
+  gpt2: 1, llama7b: 2, mistral7b: 3, llama70b: 4, gpt4: 5, claude_haiku: 6, agi: 7,
+};
+
+export function computeTokenCap(state: {
+  hardware: Record<import("./types.js").HardwareId, number>;
+  models: Record<import("./types.js").ModelId, number>;
+}): number {
+  let cap = 1_000;
+  cap += state.hardware.mac_mini * 300;
+  cap += state.hardware.gaming_pc * 1_000;
+  for (const [id, tier] of Object.entries(MODEL_TIERS) as [import("./types.js").ModelId, number][]) {
+    cap += state.models[id] * 500 * tier;
+  }
+  return cap;
+}
+
+export function computeComputeCap(state: {
+  hardware: Record<import("./types.js").HardwareId, number>;
+}): number {
+  let cap = 50;
+  cap += state.hardware.a100 * 500;
+  cap += state.hardware.tpu_pod * 2_000;
+  cap += state.hardware.gpu_cluster * 10_000;
+  cap += state.hardware.data_center * 50_000;
+  cap += state.hardware.hyperscaler * 300_000;
+  return cap;
+}
 
 /** Token goal for prestige n (run 0 → 1M, run 1 → 10M, run 2 → 100M…) */
 export function prestigeTokenThreshold(prestigeCount: number): Decimal {
@@ -35,49 +95,63 @@ export const HARDWARE: HardwareDef[] = [
   {
     id: "mac_mini",
     name: "Mac Mini",
-    computePerSec: 1,
+    computePerSec: 0.5,
+    fundingRunningCost: 0,
+    costScale: 1.25,
     baseCost: 10,
     unlockCondition: { type: "start" },
   },
   {
     id: "gaming_pc",
     name: "Gaming PC",
-    computePerSec: 8,
+    computePerSec: 2,
+    fundingRunningCost: 0,
+    costScale: 1.25,
     baseCost: 150,
     unlockCondition: { type: "ownHardware", id: "mac_mini", qty: 3 },
   },
   {
     id: "a100",
     name: "A100 GPU",
-    computePerSec: 60,
+    computePerSec: 10,
+    fundingRunningCost: 1,
+    costScale: 1.35,
     baseCost: 2_000,
     unlockCondition: { type: "ownHardware", id: "gaming_pc", qty: 3 },
   },
   {
     id: "tpu_pod",
     name: "TPU Pod",
-    computePerSec: 500,
+    computePerSec: 40,
+    fundingRunningCost: 4,
+    costScale: 1.35,
     baseCost: 25_000,
     unlockCondition: { type: "ownHardware", id: "a100", qty: 3 },
   },
   {
     id: "gpu_cluster",
     name: "GPU Cluster",
-    computePerSec: 4_000,
+    computePerSec: 200,
+    fundingRunningCost: 20,
+    costScale: 1.45,
     baseCost: 300_000,
     unlockCondition: { type: "ownHardware", id: "tpu_pod", qty: 3 },
   },
   {
     id: "data_center",
     name: "Data Center",
-    computePerSec: 35_000,
+    computePerSec: 1_000,
+    fundingRunningCost: 120,
+    costScale: 1.45,
     baseCost: 4_000_000,
     unlockCondition: { type: "ownHardware", id: "gpu_cluster", qty: 3 },
   },
   {
     id: "hyperscaler",
     name: "Hyperscaler",
-    computePerSec: 400_000,
+    computePerSec: 6_000,
+    fundingRunningCost: 800,
+    costScale: 1.45,
     baseCost: 60_000_000,
     unlockCondition: { type: "ownHardware", id: "data_center", qty: 3 },
   },
@@ -93,56 +167,63 @@ export const MODELS: ModelDef[] = [
   {
     id: "gpt2",
     name: "GPT-2",
-    computePerSec: 1,
+    computePerSec: 0.5,
     tokensPerSec: 3,
+    costScale: 1.30,
     baseCost: 50,
     unlockCondition: { type: "start" },
   },
   {
     id: "llama7b",
     name: "Llama 7B",
-    computePerSec: 8,
+    computePerSec: 2,
     tokensPerSec: 30,
+    costScale: 1.30,
     baseCost: 800,
     unlockCondition: { type: "ownHardware", id: "mac_mini", qty: 1 },
   },
   {
     id: "mistral7b",
     name: "Mistral 7B",
-    computePerSec: 40,
+    computePerSec: 3,
     tokensPerSec: 180,
+    costScale: 1.30,
     baseCost: 10_000,
     unlockCondition: { type: "ownHardware", id: "gaming_pc", qty: 1 },
   },
   {
     id: "llama70b",
     name: "Llama 70B",
-    computePerSec: 200,
+    computePerSec: 8,
     tokensPerSec: 1_000,
+    costScale: 1.30,
     baseCost: 120_000,
     unlockCondition: { type: "ownHardware", id: "a100", qty: 1 },
   },
   {
     id: "claude_haiku",
     name: "Claude Haiku",
-    computePerSec: 800,
+    computePerSec: 50,
     tokensPerSec: 4_500,
+    costScale: 1.30,
     baseCost: 1_500_000,
     unlockCondition: { type: "ownHardware", id: "tpu_pod", qty: 1 },
   },
   {
     id: "gpt4",
     name: "GPT-4",
-    computePerSec: 3_500,
+    computePerSec: 25,
     tokensPerSec: 22_000,
+    costScale: 1.30,
     baseCost: 20_000_000,
     unlockCondition: { type: "ownHardware", id: "gpu_cluster", qty: 1 },
   },
   {
     id: "agi",
     name: "AGI (????)",
-    computePerSec: 30_000,
+    computePerSec: 200,
     tokensPerSec: 250_000,
+    costScale: 1.30,
     baseCost: 500_000_000,
     unlockCondition: { type: "ownHardwareAndPrestige", id: "data_center", qty: 1, prestiges: 10 },
   },
@@ -159,6 +240,7 @@ export const INVESTORS: InvestorDef[] = [
     id: "moms_card",
     name: "Mom's Credit Card",
     fundingPerSec: 0.1,
+    costScale: 1.20,
     baseCost: 500,
     unlockCondition: { type: "hype", min: 1 },
   },
@@ -166,6 +248,7 @@ export const INVESTORS: InvestorDef[] = [
     id: "angel",
     name: "Angel Investor",
     fundingPerSec: 0.6,
+    costScale: 1.20,
     baseCost: 8_000,
     unlockCondition: { type: "hype", min: 3 },
   },
@@ -173,6 +256,7 @@ export const INVESTORS: InvestorDef[] = [
     id: "seed",
     name: "Seed Round",
     fundingPerSec: 4,
+    costScale: 1.20,
     baseCost: 100_000,
     unlockCondition: { type: "hype", min: 5 },
   },
@@ -180,6 +264,7 @@ export const INVESTORS: InvestorDef[] = [
     id: "series_a",
     name: "Series A VC",
     fundingPerSec: 25,
+    costScale: 1.20,
     baseCost: 1_500_000,
     unlockCondition: { type: "hype", min: 10 },
   },
@@ -187,6 +272,7 @@ export const INVESTORS: InvestorDef[] = [
     id: "softbank",
     name: "SoftBank",
     fundingPerSec: 200,
+    costScale: 1.20,
     baseCost: 30_000_000,
     unlockCondition: { type: "hype", min: 20 },
   },
@@ -194,6 +280,7 @@ export const INVESTORS: InvestorDef[] = [
     id: "saudi_fund",
     name: "Saudi Sovereign Fund",
     fundingPerSec: 2_000,
+    costScale: 1.20,
     baseCost: 800_000_000,
     unlockCondition: { type: "hype", min: 50 },
   },
@@ -206,69 +293,70 @@ export const INVESTOR_MAP: Record<InvestorId, InvestorDef> = Object.fromEntries(
 // ─── Upgrades ─────────────────────────────────────────────────────────────────
 
 export const UPGRADES: UpgradeDef[] = [
+  // ── Token-cost upgrades ─────────────────────────────────────────────────────
   {
     id: "better_prompts",
     name: "Better Prompts",
-    description: "Click gives ×2 tokens",
+    description: "+40% tokens/s: GPT-2, Llama 7B",
     currency: "tokens",
-    cost: 100,
-    effect: { type: "clickMultiplier", factor: 2 },
-  },
-  {
-    id: "prompt_engineering",
-    name: "Prompt Engineering",
-    description: "Click gives ×5 tokens",
-    currency: "tokens",
-    cost: 5_000,
-    effect: { type: "clickMultiplier", factor: 5 },
-  },
-  {
-    id: "chain_of_thought",
-    name: "Chain of Thought",
-    description: "Click gives ×10 tokens",
-    currency: "tokens",
-    cost: 100_000,
-    effect: { type: "clickMultiplier", factor: 10 },
+    cost: 75,
+    effect: { type: "modelMultiplier", factor: 1.4, modelIds: ["gpt2", "llama7b"] },
   },
   {
     id: "quantization",
     name: "Quantization",
-    description: "All hardware ×2 Compute/s",
+    description: "−20% compute cost: Llama models",
     currency: "tokens",
-    cost: 2_000,
-    effect: { type: "hardwareMultiplier", factor: 2 },
+    cost: 1_500,
+    effect: { type: "modelComputeMultiplier", factor: 0.8, modelIds: ["llama7b", "llama70b"] },
   },
   {
-    id: "flash_attention",
-    name: "Flash Attention",
-    description: "All hardware ×3 Compute/s",
+    id: "prompt_engineering",
+    name: "Prompt Engineering",
+    description: "+50% tokens/s: Mistral 7B, Llama 70B",
     currency: "tokens",
-    cost: 50_000,
-    effect: { type: "hardwareMultiplier", factor: 3 },
+    cost: 3_000,
+    effect: { type: "modelMultiplier", factor: 1.5, modelIds: ["mistral7b", "llama70b"] },
   },
   {
     id: "mixture_of_experts",
     name: "Mixture of Experts",
-    description: "All models ×2 Tokens/s",
+    description: "+50% tokens/s: GPT-4, Claude Haiku",
     currency: "tokens",
-    cost: 30_000,
-    effect: { type: "modelMultiplier", factor: 2 },
+    cost: 20_000,
+    effect: { type: "modelMultiplier", factor: 1.5, modelIds: ["gpt4", "claude_haiku"] },
+  },
+  {
+    id: "flash_attention",
+    name: "Flash Attention",
+    description: "−25% compute cost: GPT-4, Claude Haiku",
+    currency: "tokens",
+    cost: 35_000,
+    effect: { type: "modelComputeMultiplier", factor: 0.75, modelIds: ["gpt4", "claude_haiku"] },
+  },
+  {
+    id: "chain_of_thought",
+    name: "Chain of Thought",
+    description: "+60% tokens/s: GPT-4",
+    currency: "tokens",
+    cost: 60_000,
+    effect: { type: "modelMultiplier", factor: 1.6, modelIds: ["gpt4"] },
   },
   {
     id: "rlhf",
     name: "RLHF",
-    description: "All models ×3 Tokens/s",
+    description: "+40% tokens/s: all models",
     currency: "tokens",
-    cost: 500_000,
-    effect: { type: "modelMultiplier", factor: 3 },
+    cost: 300_000,
+    effect: { type: "modelMultiplier", factor: 1.4 },
   },
   {
     id: "constitutional_ai",
     name: "Constitutional AI",
-    description: "All models ×5 Tokens/s",
+    description: "−30% compute cost: all models",
     currency: "tokens",
-    cost: 10_000_000,
-    effect: { type: "modelMultiplier", factor: 5 },
+    cost: 6_000_000,
+    effect: { type: "modelComputeMultiplier", factor: 0.7 },
   },
   {
     id: "hype_machine",
@@ -286,45 +374,46 @@ export const UPGRADES: UpgradeDef[] = [
     cost: 50_000_000,
     effect: { type: "hypeMilestoneMultiplier", factor: 5 },
   },
+  // ── Funding-cost upgrades ───────────────────────────────────────────────────
   {
     id: "hire_interns",
     name: "Hire Interns",
-    description: "All models ×1.5 Tokens/s",
+    description: "+30% funding/s: all investors",
     currency: "funding",
-    cost: 50,
-    effect: { type: "modelMultiplier", factor: 1.5 },
+    cost: 30,
+    effect: { type: "investorMultiplier", factor: 1.3 },
   },
   {
     id: "poach_from_google",
     name: "Poach from Google",
-    description: "All models ×2 Tokens/s",
+    description: "+50% funding/s: all investors",
     currency: "funding",
-    cost: 500,
-    effect: { type: "modelMultiplier", factor: 2 },
+    cost: 300,
+    effect: { type: "investorMultiplier", factor: 1.5 },
   },
   {
     id: "open_source_everything",
     name: "Open Source Everything",
-    description: "All producers ×2 output",
+    description: "−20% compute cost: all models",
     currency: "funding",
-    cost: 5_000,
-    effect: { type: "allProducerMultiplier", factor: 2 },
+    cost: 3_000,
+    effect: { type: "modelComputeMultiplier", factor: 0.8 },
   },
   {
     id: "acquire_startup",
     name: "Acquire a Startup",
-    description: "All producers ×3 output",
+    description: "+60% funding/s: all investors",
     currency: "funding",
-    cost: 50_000,
-    effect: { type: "allProducerMultiplier", factor: 3 },
+    cost: 25_000,
+    effect: { type: "investorMultiplier", factor: 1.6 },
   },
   {
     id: "agi_safety_theater",
     name: "AGI Safety Theater",
-    description: "Hype ×3 (permanent)",
+    description: "+50% tokens/s: all models (permanent)",
     currency: "funding",
-    cost: 500_000,
-    effect: { type: "hypeMultiplier", factor: 3 },
+    cost: 300_000,
+    effect: { type: "modelMultiplier", factor: 1.5 },
   },
 ];
 

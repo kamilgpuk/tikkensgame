@@ -38,18 +38,41 @@ describe("createInitialState", () => {
 
 describe("producerCost", () => {
   it("first unit costs base", () => {
-    expect(num(producerCost(100, 0))).toBe(100);
+    expect(num(producerCost(100, 0, 1.25))).toBe(100);
   });
 
-  it("second unit costs more", () => {
-    expect(num(producerCost(100, 1))).toBeCloseTo(115, 0);
+  it("second unit costs more (1.25 scale)", () => {
+    expect(num(producerCost(100, 1, 1.25))).toBeCloseTo(125, 0);
   });
 
   it("bulk cost is sum of individual costs", () => {
-    const single1 = num(producerCost(100, 0));
-    const single2 = num(producerCost(100, 1));
-    const bulk = num(producerCost(100, 0, 2));
+    const single1 = num(producerCost(100, 0, 1.25));
+    const single2 = num(producerCost(100, 1, 1.25));
+    const bulk = num(producerCost(100, 0, 1.25, 2));
     expect(bulk).toBeCloseTo(single1 + single2, 5);
+  });
+
+  // Tiered scaling tests (Stage 5)
+  it("mac_mini: 1st purchase → 10", () => {
+    expect(num(producerCost(10, 0, 1.25))).toBe(10);
+  });
+  it("mac_mini: 2nd purchase → 12.5", () => {
+    expect(num(producerCost(10, 1, 1.25))).toBeCloseTo(12.5, 5);
+  });
+  it("mac_mini: 3rd purchase → 15.625", () => {
+    expect(num(producerCost(10, 2, 1.25))).toBeCloseTo(15.625, 5);
+  });
+  it("gpu_cluster: 1st → 300000", () => {
+    expect(num(producerCost(300_000, 0, 1.45))).toBe(300_000);
+  });
+  it("gpu_cluster: 2nd → 435000", () => {
+    expect(num(producerCost(300_000, 1, 1.45))).toBeCloseTo(435_000, 0);
+  });
+  it("gpt2: 2nd → 65", () => {
+    expect(num(producerCost(50, 1, 1.30))).toBeCloseTo(65, 5);
+  });
+  it("moms_card: 2nd → 600", () => {
+    expect(num(producerCost(500, 1, 1.20))).toBeCloseTo(600, 5);
   });
 });
 
@@ -351,7 +374,7 @@ describe("tick — numeric edge cases", () => {
   });
 
   it("E4: producerCost with owned=1000 returns a finite Decimal", () => {
-    const cost = producerCost(100, 1000);
+    const cost = producerCost(100, 1000, 1.25);
     expect(cost.isFinite()).toBe(true);
     expect(num(cost)).toBeGreaterThan(0);
   });
