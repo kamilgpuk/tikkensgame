@@ -5,7 +5,7 @@ import { Register } from "./Register.js";
 
 function makeProps(overrides = {}) {
   return {
-    onRegister: vi.fn(async () => ({ nameTaken: false })),
+    onRegister: vi.fn(async () => {}),
     onLogin: vi.fn(async () => {}),
     ...overrides,
   };

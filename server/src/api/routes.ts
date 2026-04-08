@@ -113,9 +113,13 @@ router.post("/players", async (req: Request, res: Response) => {
   const pinHash = await bcrypt.hash(pin, 10);
 
   const { nameTaken } = await createPlayer(playerId, name, pinHash);
+  if (nameTaken) {
+    res.status(409).json({ error: "Name already taken — choose a different one or log in." });
+    return;
+  }
   const state = await loadOrCreateSession(playerId, name);
 
-  res.json({ playerId, state, nameTaken });
+  res.json({ playerId, state, nameTaken: false });
 });
 
 // ─── Login / recovery ─────────────────────────────────────────────────────────

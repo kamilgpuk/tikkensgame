@@ -57,13 +57,15 @@ export async function createPlayer(
   playerName: string,
   pinHash: string
 ): Promise<CreatePlayerResult> {
-  // Check if name is already taken (case-insensitive)
+  // Block duplicate names (case-insensitive)
   const { data: existing } = await supabase
     .from("players")
     .select("id")
     .ilike("name", playerName)
     .limit(1);
-  const nameTaken = !!(existing && existing.length > 0);
+  if (existing && existing.length > 0) {
+    return { playerId, nameTaken: true };
+  }
 
   // Insert with a proper fresh initial state so deserialization never gets a partial stub
   const freshState = serializeState(createInitialState(playerId, playerName));
@@ -75,7 +77,7 @@ export async function createPlayer(
     score: 0,
   });
   if (error) throw new Error(error.message);
-  return { playerId, nameTaken };
+  return { playerId, nameTaken: false };
 }
 
 export async function findPlayerByNameAndPin(

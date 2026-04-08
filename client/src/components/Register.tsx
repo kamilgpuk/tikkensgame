@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 interface Props {
-  onRegister: (name: string, pin: string) => Promise<{ nameTaken: boolean }>;
+  onRegister: (name: string, pin: string) => Promise<void>;
   onLogin: (name: string, pin: string) => Promise<void>;
 }
 
@@ -12,13 +12,11 @@ export function Register({ onRegister, onLogin }: Props) {
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
-  const [nameTakenWarning, setNameTakenWarning] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const reset = (nextMode: Mode) => {
     setMode(nextMode);
     setError("");
-    setNameTakenWarning(false);
     setPin("");
   };
 
@@ -27,12 +25,10 @@ export function Register({ onRegister, onLogin }: Props) {
   const handleSubmit = async () => {
     if (!valid || loading) return;
     setError("");
-    setNameTakenWarning(false);
     setLoading(true);
     try {
       if (mode === "register") {
-        const { nameTaken } = await onRegister(name.trim(), pin);
-        if (nameTaken) setNameTakenWarning(true);
+        await onRegister(name.trim(), pin);
       } else {
         await onLogin(name.trim(), pin);
       }
@@ -73,7 +69,7 @@ export function Register({ onRegister, onLogin }: Props) {
           placeholder="name (max 20 chars)"
           value={name}
           maxLength={20}
-          onChange={(e) => { setName(e.target.value); setError(""); setNameTakenWarning(false); }}
+          onChange={(e) => { setName(e.target.value); setError(""); }}
           onKeyDown={onKey}
           autoFocus
         />
@@ -91,12 +87,6 @@ export function Register({ onRegister, onLogin }: Props) {
           {loading ? "..." : mode === "register" ? "start" : "log in"}
         </button>
       </div>
-
-      {nameTakenWarning && (
-        <p className="auth-warning">
-          This name is already in use. You can keep it, but a distinctive name makes recovery easier.
-        </p>
-      )}
 
       {error && <p className="auth-error">{error}</p>}
 

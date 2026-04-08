@@ -80,15 +80,14 @@ export function useGame() {
     setPlayerName(name);
   }, []);
 
-  const register = useCallback(async (name: string, pin: string): Promise<{ nameTaken: boolean }> => {
+  const register = useCallback(async (name: string, pin: string): Promise<void> => {
     // Clear active session first so the onclose handler won't reconnect with old credentials
     activeSessionRef.current = null;
     wsRef.current?.close();
     localStorage.removeItem(PLAYER_ID_KEY);
     localStorage.removeItem(PLAYER_NAME_KEY);
-    const { playerId: pid, nameTaken } = await api.createPlayer(name, pin);
+    const { playerId: pid } = await api.createPlayer(name, pin);
     storeAndConnect(pid, name);
-    return { nameTaken };
   }, [storeAndConnect]);
 
   const login = useCallback(async (name: string, pin: string): Promise<void> => {
