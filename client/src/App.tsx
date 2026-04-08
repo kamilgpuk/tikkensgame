@@ -104,7 +104,7 @@ export default function App() {
           </div>
           <div className="right-col">
             <ProducerPanel state={state} onBuy={handleBuy} />
-            <CapabilityLog tokensPerSecond={state.tokensPerSecond} computePerSecond={state.computePerSecond} />
+            <CapabilityLog tokensPerSecond={state.tokensPerSecond} computePerSecond={state.computePerSecond} totalTokensEarned={state.totalTokensEarned} />
           </div>
         </main>
       )}
