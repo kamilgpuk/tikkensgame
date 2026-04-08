@@ -13,6 +13,7 @@ import {
   doBuyModel,
   doBuyInvestor,
   doBuyUpgrade,
+  doMarketing,
   doPrestige,
   getOnlineCount,
   getGlobalTokensEarned,
@@ -209,6 +210,20 @@ router.post("/buy/:playerId", async (req: Request, res: Response) => {
     return;
   }
   if (req.headers["x-mcp-source"]) broadcastMcpAction(playerId, `buy:${id}`);
+  res.json(result.state);
+});
+
+// ─── Marketing spend ──────────────────────────────────────────────────────────
+
+router.post("/marketing/:playerId", async (req: Request, res: Response) => {
+  const { playerId } = req.params;
+  if (!await ensureSession(playerId)) { res.status(404).json({ error: "Player not found" }); return; }
+  const result = doMarketing(playerId);
+  if (!result.ok) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
+  if (req.headers["x-mcp-source"]) broadcastMcpAction(playerId, "marketing");
   res.json(result.state);
 });
 

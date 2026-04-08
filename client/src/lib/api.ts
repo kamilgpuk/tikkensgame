@@ -30,6 +30,8 @@ export const api = {
     post(`/buy/${playerId}`, { producerType, id, quantity }),
   prestige: (playerId: string) =>
     post(`/prestige/${playerId}`),
+  marketing: (playerId: string) =>
+    post(`/marketing/${playerId}`),
   leaderboard: () =>
     get("/leaderboard"),
 };

@@ -216,6 +216,31 @@ server.tool(
   }
 );
 
+// ─── spend_on_marketing ───────────────────────────────────────────────────────
+
+server.tool(
+  "spend_on_marketing",
+  "Spend 10 funding to instantly gain +1 hype. Requires at least 10 funding in balance.",
+  {},
+  async () => {
+    try {
+      const state = await apiPost<{ hype: number; funding: string }>(
+        `/marketing/${playerId()}`
+      );
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Marketing spend! Hype: ${state.hype}, Funding remaining: ${state.funding}`,
+          },
+        ],
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
+    }
+  }
+);
+
 // ─── get_leaderboard ──────────────────────────────────────────────────────────
 
 server.tool("get_leaderboard", "Get the top 20 players on the global leaderboard", {}, async () => {

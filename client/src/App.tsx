@@ -11,13 +11,14 @@ import { Leaderboard } from "./components/Leaderboard.js";
 import { PrestigeModal } from "./components/PrestigeModal.js";
 import { HowToPlay } from "./components/HowToPlay.js";
 import { McpTab } from "./components/McpTab.js";
+import { CapabilityLog } from "./components/CapabilityLog.js";
 import { getFounderTitle, prestigeTokenThreshold, prestigeFundingThreshold } from "@ai-hype/shared";
 import { fmt } from "./lib/format.js";
 
 type Tab = "game" | "leaderboard" | "mcp";
 
 export default function App() {
-  const { playerId, playerName, state, leaderboard, milestones, connected, mcpFlash, register, login, logout, doClick, buy, doPrestige } =
+  const { playerId, playerName, state, leaderboard, milestones, connected, mcpFlash, register, login, logout, doClick, buy, doPrestige, doMarketing } =
     useGame();
   const hint = useFirstTimeHints(state);
   const [showPrestige, setShowPrestige] = useState(false);
@@ -75,6 +76,14 @@ export default function App() {
           </div>
           <div className="left-col">
             <ClickButton state={state} onClick={doClick} />
+            <button
+              className="marketing-btn"
+              onClick={doMarketing}
+              disabled={state.funding.lt(10)}
+              title="Spend 10 funding to gain +1 hype instantly"
+            >
+              📣 Spend on Marketing — 10 F → +1 hype
+            </button>
             <UpgradePanel state={state} onBuy={handleUpgrade} />
             <MilestoneLog milestones={milestones} />
             {state.totalTokensEarned >= prestigeTokenThreshold(state.prestigeCount) && (
@@ -90,6 +99,7 @@ export default function App() {
           </div>
           <div className="right-col">
             <ProducerPanel state={state} onBuy={handleBuy} />
+            <CapabilityLog tokensPerSecond={state.tokensPerSecond} computePerSecond={state.computePerSecond} />
           </div>
         </main>
       )}

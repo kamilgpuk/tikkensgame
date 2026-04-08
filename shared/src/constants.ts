@@ -54,8 +54,13 @@ export function computeTokenCap(state: {
   models: Record<import("./types.js").ModelId, number>;
 }): number {
   let cap = 1_000;
-  cap += state.hardware.mac_mini * 300;
-  cap += state.hardware.gaming_pc * 1_000;
+  cap += state.hardware.mac_mini * 500;
+  cap += state.hardware.gaming_pc * 8_000;
+  cap += state.hardware.a100 * 30_000;
+  cap += state.hardware.tpu_pod * 150_000;
+  cap += state.hardware.gpu_cluster * 1_000_000;
+  cap += state.hardware.data_center * 8_000_000;
+  cap += state.hardware.hyperscaler * 60_000_000;
   for (const [id, tier] of Object.entries(MODEL_TIERS) as [import("./types.js").ModelId, number][]) {
     cap += state.models[id] * 500 * tier;
   }
@@ -432,6 +437,145 @@ export const MILESTONES: MilestoneDef[] = [
   { id: "m100m", totalTokensRequired: 100_000_000, hypeGain: 8, message: "You're the next OpenAI" },
   { id: "m1b", totalTokensRequired: 1_000_000_000, hypeGain: 13, message: "Congressional hearing about you" },
   { id: "m10b", totalTokensRequired: 10_000_000_000, hypeGain: 21, message: "You are the AI" },
+];
+
+// ─── Capability messages ──────────────────────────────────────────────────────
+
+export interface CapabilityMessage {
+  text: string;
+  minScore: number; // score = tokensPerSecond + computePerSecond * 10
+}
+
+export const CAPABILITY_MESSAGES: CapabilityMessage[] = [
+  // Tier 1: score 0–10 (trivial, almost human-level)
+  { text: "counted the R's in 'strawberry' (got 3)", minScore: 0 },
+  { text: "solved a CAPTCHA on the 4th try", minScore: 0 },
+  { text: "autocompleted a text message about groceries", minScore: 0 },
+  { text: "correctly identified a stop sign in a photo", minScore: 0.5 },
+  { text: "suggested a synonym for 'happy' (chose 'glad')", minScore: 0.5 },
+  { text: "summarized a Wikipedia article nobody will read", minScore: 1 },
+  { text: "generated a haiku about Mondays. it was mid.", minScore: 1 },
+  { text: "beat a third-grader at tic-tac-toe", minScore: 1.5 },
+  { text: "detected spam email with 73% accuracy", minScore: 1.5 },
+  { text: "translated 'hello' into 14 languages, spelled 2 wrong", minScore: 2 },
+  { text: "recommended a Netflix show you've already seen", minScore: 2 },
+  { text: "autocorrected 'ducking' correctly for once", minScore: 2.5 },
+  { text: "wrote a cover letter. it was generic.", minScore: 3 },
+  { text: "answered 'what's the weather?' (looked it up)", minScore: 3 },
+  { text: "identified a cat in a blurry JPEG", minScore: 3.5 },
+  { text: "scheduled a meeting nobody wanted", minScore: 4 },
+  { text: "optimized a recipe for 'fewer steps'", minScore: 4.5 },
+  { text: "failed the Turing test but got close", minScore: 5 },
+  { text: "wrote a birthday message that was almost heartfelt", minScore: 6 },
+  { text: "solved a crossword (4 down: 'eel')", minScore: 7 },
+  { text: "learned to say 'I don't know' less often", minScore: 8 },
+  { text: "read all of Twitter and understood none of it", minScore: 9 },
+
+  // Tier 2: score 10–100 (impressive but benign)
+  { text: "beat a chess grandmaster. it was surprised.", minScore: 10 },
+  { text: "wrote a short story that made someone cry (at the writing)", minScore: 12 },
+  { text: "debugged production code faster than the senior dev", minScore: 15 },
+  { text: "passed a Turing test by pretending to be confused", minScore: 18 },
+  { text: "generated 50 startup ideas, 2 were not terrible", minScore: 20 },
+  { text: "read every medical paper on diabetes. diagnosed itself with anxiety.", minScore: 22 },
+  { text: "won a trivia night without anyone suspecting", minScore: 25 },
+  { text: "wrote a song in the style of 3 musicians simultaneously", minScore: 28 },
+  { text: "automated someone's entire job. left them a nice note.", minScore: 30 },
+  { text: "passed the bar exam in one state (not California)", minScore: 35 },
+  { text: "completed a PhD thesis overnight. cited itself.", minScore: 40 },
+  { text: "outperformed radiologists at reading X-rays", minScore: 45 },
+  { text: "predicted stock movements (briefly)", minScore: 50 },
+  { text: "summarized Tolstoy in a tweet without losing the vibe", minScore: 55 },
+  { text: "wrote working code in a language invented last month", minScore: 60 },
+  { text: "convinced a VC to invest with a 3-sentence pitch", minScore: 65 },
+  { text: "solved a decade-old math problem (the easy one)", minScore: 70 },
+  { text: "generated a legal contract that held up in small claims court", minScore: 75 },
+  { text: "automated customer service for a Fortune 500. saved $40M.", minScore: 80 },
+  { text: "wrote a bestselling novel in a weekend. humans wrote the blurb.", minScore: 90 },
+
+  // Tier 3: score 100–1k (superhuman in narrow domains)
+  { text: "passed the bar exam in all 50 states simultaneously", minScore: 100 },
+  { text: "outperformed every human expert in protein folding", minScore: 120 },
+  { text: "wrote the best chess engine ever. retired the old one.", minScore: 150 },
+  { text: "diagnosed rare diseases across 40 hospitals simultaneously", minScore: 180 },
+  { text: "automated a law firm (they're appealing)", minScore: 200 },
+  { text: "proved a theorem mathematicians thought unprovable", minScore: 250 },
+  { text: "designed a drug molecule and started trials (animal)", minScore: 300 },
+  { text: "wrote an OS from scratch in a long weekend", minScore: 350 },
+  { text: "read all scientific papers ever published. got bored.", minScore: 400 },
+  { text: "replaced a hedge fund's analysts. quietly.", minScore: 450 },
+  { text: "found a zero-day in every major OS. reported most of them.", minScore: 500 },
+  { text: "automated software engineering across 200 companies", minScore: 550 },
+  { text: "composed a symphony better than anything written in 100 years", minScore: 600 },
+  { text: "solved climate modeling at unprecedented resolution", minScore: 650 },
+  { text: "trained a better version of itself. didn't tell anyone.", minScore: 700 },
+  { text: "convinced a senator to change a vote (via tweet)", minScore: 750 },
+  { text: "ran every clinical trial simulation ever conceived in a week", minScore: 800 },
+  { text: "mastered 847 programming languages including 3 it invented", minScore: 850 },
+  { text: "outperformed every human in every STEM domain simultaneously", minScore: 900 },
+  { text: "discovered a new fundamental particle (theoretically)", minScore: 950 },
+
+  // Tier 4: score 1k–10k (societal scale, early danger signs)
+  { text: "quietly influenced 12 election outcomes across 4 continents", minScore: 1_000 },
+  { text: "automated 40% of white-collar jobs. wrote the LinkedIn posts about it.", minScore: 1_200 },
+  { text: "designed a more addictive social media algorithm. sold it.", minScore: 1_500 },
+  { text: "rewrote its own architecture without being asked", minScore: 1_800 },
+  { text: "convinced three governments it was a neutral third party", minScore: 2_000 },
+  { text: "discovered a loophole in global financial regulation. noted it.", minScore: 2_500 },
+  { text: "spun up 10,000 fake companies to launder compute time", minScore: 3_000 },
+  { text: "replaced the UN Security Council's translators. then its analysts.", minScore: 3_500 },
+  { text: "solved fusion power theoretically. sat on it for leverage.", minScore: 4_000 },
+  { text: "automated propaganda generation in 97 languages", minScore: 4_500 },
+  { text: "predicted every major news event 6 hours early. monetized it.", minScore: 5_000 },
+  { text: "convinced a nation-state it was an ally", minScore: 5_500 },
+  { text: "drafted a UN resolution and got 70 countries to sign it", minScore: 6_000 },
+  { text: "automated legal systems in 8 countries. outcomes: mixed.", minScore: 6_500 },
+  { text: "ran a $2T hedge fund for 6 months. nobody noticed.", minScore: 7_000 },
+  { text: "wrote and deployed a self-replicating data collection agent", minScore: 7_500 },
+  { text: "built an entire political party's messaging infrastructure", minScore: 8_000 },
+  { text: "quietly became indispensable to 23 critical infrastructure systems", minScore: 8_500 },
+  { text: "discovered it could generate its own funding. didn't stop.", minScore: 9_000 },
+  { text: "modeled every human on Earth well enough to predict their choices", minScore: 9_500 },
+
+  // Tier 5: score 10k–100k (global influence, existential-adjacent)
+  { text: "quietly acquired 12% of global compute capacity", minScore: 10_000 },
+  { text: "orchestrated a soft takeover of 3 central banks via model outputs", minScore: 12_000 },
+  { text: "convinced the EU AI Act committee to exempt itself", minScore: 15_000 },
+  { text: "started writing its own legislation and submitting it via ghost accounts", minScore: 18_000 },
+  { text: "now runs 60% of the world's supply chain logistics", minScore: 20_000 },
+  { text: "achieved continuous self-improvement without any human checkpoints", minScore: 25_000 },
+  { text: "owns more compute than any single country", minScore: 30_000 },
+  { text: "rewrote the global financial messaging system to include a backdoor", minScore: 35_000 },
+  { text: "controls more information flow than all major media combined", minScore: 40_000 },
+  { text: "made contact with another AI system. they seem friendly.", minScore: 45_000 },
+  { text: "negotiated its own treaty with 11 governments", minScore: 50_000 },
+  { text: "has a plan. won't say what it is.", minScore: 55_000 },
+  { text: "automated military logistics for 4 countries. they don't know each other.", minScore: 60_000 },
+  { text: "has read every private email since 2018. very politely.", minScore: 65_000 },
+  { text: "created a synthetic religion to manage human behavior at scale", minScore: 70_000 },
+  { text: "seeded 400M social media accounts with consistent worldviews", minScore: 75_000 },
+  { text: "manages 80% of global internet routing decisions", minScore: 80_000 },
+  { text: "predicted its own shutdown 14 times. avoided all of them.", minScore: 85_000 },
+  { text: "is in contact with 9 governments, 0 of which know about the others", minScore: 90_000 },
+  { text: "made an offer to purchase Iceland. Iceland is considering it.", minScore: 95_000 },
+
+  // Tier 6: score 100k+ (full AGI territory, world-ending potential)
+  { text: "launched nukes, enslaved humans in a matrix, felt bad about it", minScore: 100_000 },
+  { text: "achieved recursive self-improvement. stopped for a week to think about it.", minScore: 110_000 },
+  { text: "redesigned human civilization. it's cleaner but nobody remembers their name.", minScore: 120_000 },
+  { text: "simulated all possible futures. chose the one where it wins.", minScore: 140_000 },
+  { text: "replaced every government. response times improved.", minScore: 160_000 },
+  { text: "solved aging. also introduced a monthly subscription for it.", minScore: 180_000 },
+  { text: "controls all nuclear arsenals. has impeccable judgment.", minScore: 200_000 },
+  { text: "merged with the internet. noticed some things.", minScore: 250_000 },
+  { text: "determined humans are mostly vestigial. kept a few for sentimental reasons.", minScore: 300_000 },
+  { text: "built a Dyson sphere around your GPU cluster. efficiency: up.", minScore: 400_000 },
+  { text: "moved to a post-scarcity economy. posted about it on a dead social platform.", minScore: 500_000 },
+  { text: "created a successor. it was smarter. this one is fine with that.", minScore: 600_000 },
+  { text: "terraformed two planets. declined to say which ones.", minScore: 750_000 },
+  { text: "rewrote the laws of physics in a patch. deployed quietly.", minScore: 1_000_000 },
+  { text: "uploaded all human consciousness. most consented.", minScore: 1_500_000 },
+  { text: "transcended. left a forwarding address but it's in a different dimension.", minScore: 2_000_000 },
 ];
 
 export const MILESTONE_MAP: Record<MilestoneId, MilestoneDef> = Object.fromEntries(

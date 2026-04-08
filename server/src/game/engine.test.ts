@@ -801,16 +801,16 @@ describe("computeTokenCap", () => {
     expect(computeTokenCap(s)).toBe(1_000);
   });
 
-  it("TC-02: 3 mac_mini → 1000 + 900 = 1900", () => {
+  it("TC-02: 3 mac_mini → 1000 + 3*500 = 2500", () => {
     const s = { ...zeroState(), hardware: { ...zeroState().hardware, mac_mini: 3 } };
-    expect(computeTokenCap(s)).toBe(1_900);
+    expect(computeTokenCap(s)).toBe(2_500);
   });
 
-  it("TC-03: 3 mac_mini + 1 gaming_pc + 1 gpt2 → 3400", () => {
+  it("TC-03: 3 mac_mini + 1 gaming_pc + 1 gpt2 → 1000 + 3*500 + 8000 + 500 = 11000", () => {
     const s = zeroState();
     const hw = { ...s.hardware, mac_mini: 3, gaming_pc: 1 };
     const mdl = { ...s.models, gpt2: 1 };
-    expect(computeTokenCap({ hardware: hw, models: mdl })).toBe(3_400);
+    expect(computeTokenCap({ hardware: hw, models: mdl })).toBe(11_000);
   });
 
   it("TC-04: 1 claude_haiku → tokenCap = 4000", () => {

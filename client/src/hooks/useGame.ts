@@ -105,6 +105,11 @@ export function useGame() {
     await api.prestige(playerId).catch(() => null);
   }, [playerId]);
 
+  const doMarketing = useCallback(async () => {
+    if (!playerId) return;
+    await api.marketing(playerId).catch(() => null);
+  }, [playerId]);
+
   const logout = useCallback(() => {
     wsRef.current?.close();
     localStorage.removeItem(PLAYER_ID_KEY);
@@ -128,5 +133,6 @@ export function useGame() {
     doClick,
     buy,
     doPrestige,
+    doMarketing,
   };
 }

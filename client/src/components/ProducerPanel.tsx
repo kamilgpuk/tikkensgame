@@ -87,24 +87,20 @@ function isNextHardware(id: HardwareId, state: GameState): boolean {
 
 /**
  * Estimate how many hardware units of a given type are offline due to funding deficit.
- * We replicate the offline logic here (client-side approximation).
+ * Uses state.funding (balance) against per-second running cost (elapsed=1 approximation).
  */
 function computeHardwareOffline(state: GameState): Record<HardwareId, number> {
-  // Estimate funding/s from investor counts
-  let rawFunding = 0;
-  for (const inv of INVESTORS) {
-    rawFunding += inv.fundingPerSec * state.investors[inv.id];
-  }
+  const fundingBalance = state.funding.toNumber();
 
   const active: Record<HardwareId, number> = { ...state.hardware };
-  let totalFundingNeeded = 0;
+  let totalRunningCostPerSec = 0;
   for (const hw of HARDWARE) {
     if (hw.fundingRunningCost > 0) {
-      totalFundingNeeded += active[hw.id] * hw.fundingRunningCost;
+      totalRunningCostPerSec += active[hw.id] * hw.fundingRunningCost;
     }
   }
 
-  if (rawFunding >= totalFundingNeeded) {
+  if (fundingBalance >= totalRunningCostPerSec) {
     // All online — offline count is 0
     const offline: Record<HardwareId, number> = {} as Record<HardwareId, number>;
     for (const hw of HARDWARE) offline[hw.id] = 0;
@@ -116,9 +112,9 @@ function computeHardwareOffline(state: GameState): Record<HardwareId, number> {
     .sort((a, b) => b.fundingRunningCost - a.fundingRunningCost);
 
   for (const hw of expensiveFirst) {
-    while (active[hw.id] > 0 && totalFundingNeeded > rawFunding) {
+    while (active[hw.id] > 0 && totalRunningCostPerSec > fundingBalance) {
       active[hw.id]--;
-      totalFundingNeeded -= hw.fundingRunningCost;
+      totalRunningCostPerSec -= hw.fundingRunningCost;
     }
   }
 

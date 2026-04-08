@@ -13,6 +13,7 @@ import {
   buyInvestor,
   buyUpgrade,
   prestige as enginePrestige,
+  spendOnMarketing,
   BuyResult,
 } from "./engine.js";
 import { saveState, loadState } from "../db/index.js";
@@ -105,6 +106,17 @@ export function doBuyUpgrade(playerId: string, id: UpgradeId): BuyResult {
   const state = sessions.get(playerId);
   if (!state) return { ok: false, error: "Session not found" };
   const result = buyUpgrade(state, id);
+  if (result.ok) {
+    sessions.set(playerId, result.state);
+    maybeSave(playerId, result.state);
+  }
+  return result;
+}
+
+export function doMarketing(playerId: string): BuyResult {
+  const state = sessions.get(playerId);
+  if (!state) return { ok: false, error: "Session not found" };
+  const result = spendOnMarketing(state);
   if (result.ok) {
     sessions.set(playerId, result.state);
     maybeSave(playerId, result.state);
