@@ -75,7 +75,7 @@ Register an account at [tikkensgame.com](https://www.tikkensgame.com), then add 
 }
 ```
 
-Then in Claude Code, Claude can call tools like `get_game_state`, `buy_producer`, `click`, etc.
+Then in Claude Code, Claude can call tools like `get_game_state`, `get_available_actions`, `click`, `buy_producer`, `buy_upgrade`, `spend_on_marketing`, `prestige`, and `get_leaderboard`.
 
 ---
 
@@ -90,5 +90,5 @@ Then in Claude Code, Claude can call tools like `get_game_state`, `buy_producer`
 
 ```bash
 npm test                          # run all tests
-npm run test --workspace=server   # server unit tests only (32 tests)
+npm run test --workspace=server   # server unit tests only (~172 tests)
 ```
