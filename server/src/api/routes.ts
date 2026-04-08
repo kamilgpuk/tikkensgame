@@ -13,6 +13,8 @@ import {
   doBuyModel,
   doBuyInvestor,
   doBuyUpgrade,
+  doSellHardware,
+  doRemoveModel,
   doMarketing,
   doPrestige,
   getOnlineCount,
@@ -210,6 +212,35 @@ router.post("/buy/:playerId", async (req: Request, res: Response) => {
     return;
   }
   if (req.headers["x-mcp-source"]) broadcastMcpAction(playerId, `buy:${id}`);
+  res.json(result.state);
+});
+
+// ─── Sell / remove ────────────────────────────────────────────────────────────
+
+router.post("/sell/:playerId", async (req: Request, res: Response) => {
+  const { playerId } = req.params;
+  if (!await ensureSession(playerId)) { res.status(404).json({ error: "Player not found" }); return; }
+  const { producerType, id, quantity } = req.body as {
+    producerType?: string;
+    id?: string;
+    quantity?: number;
+  };
+  const qty = Math.max(1, Number(quantity) || 1);
+
+  let result;
+  if (producerType === "hardware") {
+    result = doSellHardware(playerId, id as HardwareId, qty);
+  } else if (producerType === "model") {
+    result = doRemoveModel(playerId, id as ModelId, qty);
+  } else {
+    res.status(400).json({ error: "Can only sell hardware or model" });
+    return;
+  }
+
+  if (!result.ok) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
   res.json(result.state);
 });
 

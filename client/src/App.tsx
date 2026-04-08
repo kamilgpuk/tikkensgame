@@ -18,7 +18,7 @@ import { fmt } from "./lib/format.js";
 type Tab = "game" | "leaderboard" | "mcp";
 
 export default function App() {
-  const { playerId, playerName, state, leaderboard, milestones, connected, mcpFlash, register, login, logout, doClick, buy, doPrestige, doMarketing } =
+  const { playerId, playerName, state, leaderboard, milestones, connected, mcpFlash, register, login, logout, doClick, buy, sell, doPrestige, doMarketing } =
     useGame();
   const hint = useFirstTimeHints(state);
   const [showPrestige, setShowPrestige] = useState(false);
@@ -33,6 +33,7 @@ export default function App() {
   }
 
   const handleBuy = (producerType: string, id: string) => buy(producerType, id);
+  const handleSell = (producerType: string, id: string) => sell(producerType, id);
   const handleUpgrade = (id: string) => buy("upgrade", id);
   const handlePrestige = async () => { await doPrestige(); setShowPrestige(false); };
 
@@ -103,7 +104,7 @@ export default function App() {
             )}
           </div>
           <div className="right-col">
-            <ProducerPanel state={state} onBuy={handleBuy} />
+            <ProducerPanel state={state} onBuy={handleBuy} onSell={handleSell} />
             <CapabilityLog tokensPerSecond={state.tokensPerSecond} computePerSecond={state.computePerSecond} totalTokensEarned={state.totalTokensEarned} />
           </div>
         </main>

@@ -23,7 +23,7 @@ describe("ProducerPanel component", () => {
   // CL6: shows locked vs unlocked — locked hardware has a different visual state
   it("CL6: locked gaming_pc row has 'locked' CSS class", () => {
     const state = makeState({ tokens: new Decimal(0) }); // 0 mac_minis → gaming_pc locked
-    const { container } = render(<ProducerPanel state={state} onBuy={vi.fn()} />);
+    const { container } = render(<ProducerPanel state={state} onBuy={vi.fn()} onSell={vi.fn()} />);
     // Find all producer rows with 'locked' class
     const lockedRows = container.querySelectorAll(".producer-row.locked");
     expect(lockedRows.length).toBeGreaterThan(0);
@@ -32,7 +32,7 @@ describe("ProducerPanel component", () => {
   // CL7: buy button disabled when unaffordable
   it("CL7: Mac Mini buy buttons are disabled when tokens=0 (cost is 10)", () => {
     const state = makeState({ tokens: new Decimal(0) });
-    const { container } = render(<ProducerPanel state={state} onBuy={vi.fn()} />);
+    const { container } = render(<ProducerPanel state={state} onBuy={vi.fn()} onSell={vi.fn()} />);
     // All buy buttons should be disabled since no tokens
     const buyButtons = container.querySelectorAll("button.buy-btn");
     expect(buyButtons.length).toBeGreaterThan(0);
@@ -44,7 +44,7 @@ describe("ProducerPanel component", () => {
 
   it("Mac Mini buy button enabled when tokens >= cost (10)", () => {
     const state = makeState({ tokens: new Decimal(100) });
-    const { container } = render(<ProducerPanel state={state} onBuy={vi.fn()} />);
+    const { container } = render(<ProducerPanel state={state} onBuy={vi.fn()} onSell={vi.fn()} />);
     const macMiniRow = container.querySelector(".producer-row:not(.locked)");
     const macMiniBuyBtn = macMiniRow?.querySelector("button.buy-btn");
     expect(macMiniBuyBtn).not.toBeDisabled();
@@ -52,7 +52,7 @@ describe("ProducerPanel component", () => {
 
   it("renders producer name elements", () => {
     const state = makeState({ tokens: new Decimal(0) });
-    const { container } = render(<ProducerPanel state={state} onBuy={vi.fn()} />);
+    const { container } = render(<ProducerPanel state={state} onBuy={vi.fn()} onSell={vi.fn()} />);
     const names = container.querySelectorAll(".producer-name");
     expect(names.length).toBeGreaterThan(0);
     const nameTexts = Array.from(names).map(el => el.textContent?.toLowerCase() ?? "");

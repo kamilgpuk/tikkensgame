@@ -112,6 +112,14 @@ export function useGame() {
     [playerId]
   );
 
+  const sell = useCallback(
+    async (producerType: string, id: string, quantity = 1) => {
+      if (!playerId) return;
+      await api.sell(playerId, producerType, id, quantity).catch(() => null);
+    },
+    [playerId]
+  );
+
   const doPrestige = useCallback(async () => {
     if (!playerId) return;
     await api.prestige(playerId).catch(() => null);
@@ -145,6 +153,7 @@ export function useGame() {
     logout,
     doClick,
     buy,
+    sell,
     doPrestige,
     doMarketing,
   };

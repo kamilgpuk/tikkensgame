@@ -278,13 +278,19 @@ export function computeRates(state: GameState): {
   const hwMult = getHardwareMultiplier(state);
   const hypeMult = getHypeMultiplier(state);
 
-  // ── Funding/s (needed for hardware offline check) ──
+  // ── Funding/s = investor income − hardware running costs ──
   const invMult = getInvestorMultiplier(state);
   let rawFunding = 0;
   for (const inv of INVESTORS) {
     rawFunding += inv.fundingPerSec * state.investors[inv.id] * invMult;
   }
-  const fundingPerSecond = new Decimal(rawFunding);
+  let hardwareRunningCostPerSec = 0;
+  for (const hw of HARDWARE) {
+    if (hw.fundingRunningCost > 0) {
+      hardwareRunningCostPerSec += hw.fundingRunningCost * state.hardware[hw.id];
+    }
+  }
+  const fundingPerSecond = new Decimal(rawFunding - hardwareRunningCostPerSec);
 
   // ── Resolve active hardware (balance-based offline) ──
   // In computeRates we approximate using the funding balance as-is (no elapsed context)
@@ -594,6 +600,63 @@ export function buyUpgrade(state: GameState, id: UpgradeId): BuyResult {
     ok: true,
     state: {
       ...newState,
+      tokensPerSecond: rates.tokensPerSecond,
+      computePerSecond: rates.computePerSecond,
+      fundingPerSecond: rates.fundingPerSecond,
+      clickPower: rates.clickPower,
+    },
+  };
+}
+
+// ─── Sell / remove producers ─────────────────────────────────────────────────
+
+export function sellHardware(state: GameState, id: HardwareId, qty = 1): BuyResult {
+  if (state.hardware[id] < qty) return { ok: false, error: "Not enough owned" };
+  const def = HARDWARE_MAP[id];
+  // Refund 50% of each unit's original cost (last-bought price)
+  let refund = new Decimal(0);
+  for (let i = 0; i < qty; i++) {
+    refund = refund.add(producerCost(def.baseCost, state.hardware[id] - 1 - i, def.costScale).mul(0.5));
+  }
+  const hardware = { ...state.hardware, [id]: state.hardware[id] - qty };
+  const newState = { ...state, hardware };
+  const rates = computeRates(newState);
+  const newTokenCap = computeTokenCap(newState);
+  // Overflow is lost
+  const newTokens = Decimal.min(new Decimal(newTokenCap), state.tokens.add(refund));
+  return {
+    ok: true,
+    state: {
+      ...newState,
+      tokens: newTokens,
+      tokenCap: newTokenCap,
+      computeCap: computeComputeCap(newState),
+      tokensPerSecond: rates.tokensPerSecond,
+      computePerSecond: rates.computePerSecond,
+      fundingPerSecond: rates.fundingPerSecond,
+      clickPower: rates.clickPower,
+    },
+  };
+}
+
+export function removeModel(state: GameState, id: ModelId, qty = 1): BuyResult {
+  if (state.models[id] < qty) return { ok: false, error: "Not enough owned" };
+  const def = MODEL_MAP[id];
+  let refund = new Decimal(0);
+  for (let i = 0; i < qty; i++) {
+    refund = refund.add(producerCost(def.baseCost, state.models[id] - 1 - i, def.costScale).mul(0.5));
+  }
+  const models = { ...state.models, [id]: state.models[id] - qty };
+  const newState = { ...state, models };
+  const rates = computeRates(newState);
+  const newTokenCap = computeTokenCap(newState);
+  const newTokens = Decimal.min(new Decimal(newTokenCap), state.tokens.add(refund));
+  return {
+    ok: true,
+    state: {
+      ...newState,
+      tokens: newTokens,
+      tokenCap: newTokenCap,
       tokensPerSecond: rates.tokensPerSecond,
       computePerSecond: rates.computePerSecond,
       fundingPerSecond: rates.fundingPerSecond,

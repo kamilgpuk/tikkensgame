@@ -12,6 +12,8 @@ import {
   buyModel,
   buyInvestor,
   buyUpgrade,
+  sellHardware,
+  removeModel,
   prestige as enginePrestige,
   spendOnMarketing,
   BuyResult,
@@ -106,6 +108,28 @@ export function doBuyUpgrade(playerId: string, id: UpgradeId): BuyResult {
   const state = sessions.get(playerId);
   if (!state) return { ok: false, error: "Session not found" };
   const result = buyUpgrade(state, id);
+  if (result.ok) {
+    sessions.set(playerId, result.state);
+    maybeSave(playerId, result.state);
+  }
+  return result;
+}
+
+export function doSellHardware(playerId: string, id: HardwareId, qty = 1): BuyResult {
+  const state = sessions.get(playerId);
+  if (!state) return { ok: false, error: "Session not found" };
+  const result = sellHardware(state, id, qty);
+  if (result.ok) {
+    sessions.set(playerId, result.state);
+    maybeSave(playerId, result.state);
+  }
+  return result;
+}
+
+export function doRemoveModel(playerId: string, id: ModelId, qty = 1): BuyResult {
+  const state = sessions.get(playerId);
+  if (!state) return { ok: false, error: "Session not found" };
+  const result = removeModel(state, id, qty);
   if (result.ok) {
     sessions.set(playerId, result.state);
     maybeSave(playerId, result.state);

@@ -129,16 +129,19 @@ interface RowProps {
   name: string;
   owned: number;
   cost: number;
+  sellRefund: number;
   canAfford: boolean;
   detail: string;
   unlockHint: string | null;
   isLocked: boolean;
   isClose: boolean;
   offlineCount?: number;
+  canSell: boolean;
   onBuy: () => void;
+  onSell: () => void;
 }
 
-function ProducerRow({ name, owned, cost, canAfford, detail, unlockHint, isLocked, isClose, offlineCount, onBuy }: RowProps) {
+function ProducerRow({ name, owned, cost, sellRefund, canAfford, detail, unlockHint, isLocked, isClose, offlineCount, canSell, onBuy, onSell }: RowProps) {
   if (isLocked && !isClose) return null;
 
   return (
@@ -160,6 +163,11 @@ function ProducerRow({ name, owned, cost, canAfford, detail, unlockHint, isLocke
               )}
             </span>
           )}
+          {canSell && (
+            <button className="sell-btn" onClick={onSell} title={`Sell 1 for ${fmt(sellRefund)} T (50% refund)`}>
+              −{fmt(sellRefund)}
+            </button>
+          )}
           <button className="buy-btn" disabled={!canAfford} onClick={onBuy}>
             {fmt(cost)} T
           </button>
@@ -172,9 +180,10 @@ function ProducerRow({ name, owned, cost, canAfford, detail, unlockHint, isLocke
 interface Props {
   state: GameState;
   onBuy: (type: string, id: string) => void;
+  onSell: (type: string, id: string) => void;
 }
 
-export function ProducerPanel({ state, onBuy }: Props) {
+export function ProducerPanel({ state, onBuy, onSell }: Props) {
   const offlineByHw = computeHardwareOffline(state);
 
   return (
@@ -186,6 +195,9 @@ export function ProducerPanel({ state, onBuy }: Props) {
           const hint = hardwareUnlockHint(h.id, state);
           const close = !unlocked && isNextHardware(h.id, state);
           const offlineCount = offlineByHw[h.id];
+          const owned = state.hardware[h.id];
+          const buyCost = scaledCost(h.baseCost, owned, h.costScale);
+          const sellRefund = owned > 0 ? scaledCost(h.baseCost, owned - 1, h.costScale).mul(0.5).toNumber() : 0;
           const detail = h.fundingRunningCost > 0
             ? `▶ ${h.computePerSec} compute/s · 💸 ${h.fundingRunningCost} funding/s`
             : `▶ ${h.computePerSec} compute/s`;
@@ -193,15 +205,18 @@ export function ProducerPanel({ state, onBuy }: Props) {
             <ProducerRow
               key={h.id}
               name={h.name}
-              owned={state.hardware[h.id]}
-              cost={scaledCost(h.baseCost, state.hardware[h.id], h.costScale).toNumber()}
-              canAfford={state.tokens.gte(scaledCost(h.baseCost, state.hardware[h.id], h.costScale))}
+              owned={owned}
+              cost={buyCost.toNumber()}
+              sellRefund={sellRefund}
+              canAfford={state.tokens.gte(buyCost)}
               detail={detail}
               unlockHint={hint}
               isLocked={!unlocked}
               isClose={close}
               offlineCount={offlineCount}
+              canSell={owned > 0}
               onBuy={() => onBuy("hardware", h.id)}
+              onSell={() => onSell("hardware", h.id)}
             />
           );
         })}
@@ -212,25 +227,30 @@ export function ProducerPanel({ state, onBuy }: Props) {
         {MODELS.map((m) => {
           const unlocked = isModelUnlocked(m.id, state);
           const hint = modelUnlockHint(m.id, state);
-          // Show locked model if it's the next one up
           const unlockedModels = MODELS.filter((x) => isModelUnlocked(x.id, state));
           const lastUnlockedIdx = MODELS.findIndex((x) => x.id === (unlockedModels[unlockedModels.length - 1]?.id));
           const myIdx = MODELS.findIndex((x) => x.id === m.id);
           const isNext = !unlocked && myIdx === lastUnlockedIdx + 1;
-          const nextComputeCost = modelNextInstanceComputeCost(m.computePerSec, state.models[m.id]);
+          const owned = state.models[m.id];
+          const buyCost = scaledCost(m.baseCost, owned, m.costScale);
+          const sellRefund = owned > 0 ? scaledCost(m.baseCost, owned - 1, m.costScale).mul(0.5).toNumber() : 0;
+          const nextComputeCost = modelNextInstanceComputeCost(m.computePerSec, owned);
           const detail = `+${fmt(m.tokensPerSec)} T/s · ⚡ ${nextComputeCost.toFixed(2)} C/s (next)`;
           return (
             <ProducerRow
               key={m.id}
               name={m.name}
-              owned={state.models[m.id]}
-              cost={scaledCost(m.baseCost, state.models[m.id], m.costScale).toNumber()}
-              canAfford={state.tokens.gte(scaledCost(m.baseCost, state.models[m.id], m.costScale))}
+              owned={owned}
+              cost={buyCost.toNumber()}
+              sellRefund={sellRefund}
+              canAfford={state.tokens.gte(buyCost)}
               detail={detail}
               unlockHint={hint}
               isLocked={!unlocked}
               isClose={isNext}
+              canSell={owned > 0}
               onBuy={() => onBuy("model", m.id)}
+              onSell={() => onSell("model", m.id)}
             />
           );
         })}
@@ -246,18 +266,23 @@ export function ProducerPanel({ state, onBuy }: Props) {
             const lastIdx = INVESTORS.findIndex((x) => x.id === (unlockedInv[unlockedInv.length - 1]?.id));
             const myIdx = INVESTORS.findIndex((x) => x.id === i.id);
             const isNext = !unlocked && myIdx === lastIdx + 1;
+            const owned = state.investors[i.id];
+            const buyCost = scaledCost(i.baseCost, owned, i.costScale);
             return (
               <ProducerRow
                 key={i.id}
                 name={i.name}
-                owned={state.investors[i.id]}
-                cost={scaledCost(i.baseCost, state.investors[i.id], i.costScale).toNumber()}
-                canAfford={state.tokens.gte(scaledCost(i.baseCost, state.investors[i.id], i.costScale))}
+                owned={owned}
+                cost={buyCost.toNumber()}
+                sellRefund={0}
+                canAfford={state.tokens.gte(buyCost)}
                 detail={`+$${i.fundingPerSec}/s funding`}
                 unlockHint={hint}
                 isLocked={!unlocked}
                 isClose={isNext}
+                canSell={false}
                 onBuy={() => onBuy("investor", i.id)}
+                onSell={() => {}}
               />
             );
           })}

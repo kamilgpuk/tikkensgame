@@ -28,6 +28,8 @@ export const api = {
     post(`/click/${playerId}`, { n }),
   buy: (playerId: string, producerType: string, id: string, quantity = 1) =>
     post(`/buy/${playerId}`, { producerType, id, quantity }),
+  sell: (playerId: string, producerType: string, id: string, quantity = 1) =>
+    post(`/sell/${playerId}`, { producerType, id, quantity }),
   prestige: (playerId: string) =>
     post(`/prestige/${playerId}`),
   marketing: (playerId: string) =>

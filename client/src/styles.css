@@ -363,6 +363,7 @@ nav button.active { color: var(--fg); border-bottom: 1px solid var(--fg); }
 .producer-right { display: flex; align-items: center; gap: 8px; }
 .producer-owned { font-size: 0.75rem; color: var(--muted); min-width: 28px; text-align: right; }
 .buy-btn { white-space: nowrap; font-size: 0.8rem; padding: 4px 8px; }
+.sell-btn { white-space: nowrap; font-size: 0.75rem; padding: 3px 6px; color: var(--muted); border-color: var(--muted); opacity: 0.7; }
 .producer-row.expensive .producer-name { color: var(--muted); }
 
 /* ── Leaderboard ───────────────────────────────────────────────────────────── */
@@ -407,10 +408,6 @@ nav button.active { color: var(--fg); border-bottom: 1px solid var(--fg); }
 .modal-actions { display: flex; gap: 8px; }
 .btn-confirm { flex: 1; padding: 10px; font-weight: bold; border-color: var(--green); color: var(--green); }
 .btn-cancel { flex: 1; padding: 10px; }
-
-/* ── Resource warn ─────────────────────────────────────────────────────────── */
-
-.resource-warn { font-size: 0.7rem; color: var(--red); display: block; min-height: 1em; }
 
 /* ── First-time hint ───────────────────────────────────────────────────────── */
 
