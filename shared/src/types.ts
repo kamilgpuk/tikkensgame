@@ -152,6 +152,9 @@ export interface GameState {
   tokenCap: number;
   computeCap: number;
 
+  // Marketing spend count — used to scale cost (10 × 3^n)
+  marketingCount: number;
+
   // Purchased upgrades
   upgrades: UpgradeId[];
 
@@ -179,6 +182,7 @@ export interface SerializedGameState {
   clickPower: string;
   tokenCap: number;
   computeCap: number;
+  marketingCount: number;
   hardware: Record<HardwareId, number>;
   models: Record<ModelId, number>;
   investors: Record<InvestorId, number>;

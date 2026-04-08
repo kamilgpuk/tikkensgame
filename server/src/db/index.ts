@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { GameState, LeaderboardEntry } from "@ai-hype/shared";
 import { getFounderTitle, serializeState, deserializeState } from "@ai-hype/shared";
-import { computeScore } from "../game/engine.js";
+import { computeScore, createInitialState } from "../game/engine.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "";
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY ?? "";
@@ -65,12 +65,13 @@ export async function createPlayer(
     .limit(1);
   const nameTaken = !!(existing && existing.length > 0);
 
-  // State will be populated by loadOrCreateSession after insert
+  // Insert with a proper fresh initial state so deserialization never gets a partial stub
+  const freshState = serializeState(createInitialState(playerId, playerName));
   const { error } = await supabase.from("players").insert({
     id: playerId,
     name: playerName,
     pin_hash: pinHash,
-    state: { playerId, playerName } as unknown as GameState,
+    state: freshState,
     score: 0,
   });
   if (error) throw new Error(error.message);

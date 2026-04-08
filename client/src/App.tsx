@@ -76,14 +76,19 @@ export default function App() {
           </div>
           <div className="left-col">
             <ClickButton state={state} onClick={doClick} />
-            <button
-              className="marketing-btn"
-              onClick={doMarketing}
-              disabled={state.funding.lt(10)}
-              title="Spend 10 funding to gain +1 hype instantly"
-            >
-              📣 Spend on Marketing — 10 F → +1 hype
-            </button>
+            {(() => {
+              const mCost = Math.floor(10 * Math.pow(3, state.marketingCount));
+              return (
+                <button
+                  className="marketing-btn"
+                  onClick={doMarketing}
+                  disabled={state.funding.lt(mCost)}
+                  title={`Spend $${mCost.toLocaleString()} funding to gain +1 hype. Cost triples each purchase.`}
+                >
+                  📣 Marketing — ${mCost.toLocaleString()} F → +1 hype
+                </button>
+              );
+            })()}
             <UpgradePanel state={state} onBuy={handleUpgrade} />
             <MilestoneLog milestones={milestones} />
             {state.totalTokensEarned >= prestigeTokenThreshold(state.prestigeCount) && (

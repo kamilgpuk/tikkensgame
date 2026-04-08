@@ -23,7 +23,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     hardware: { mac_mini: 0, gaming_pc: 0, a100: 0, tpu_pod: 0, gpu_cluster: 0, data_center: 0, hyperscaler: 0 },
     models: { gpt2: 0, llama7b: 0, mistral7b: 0, llama70b: 0, claude_haiku: 0, gpt4: 0, agi: 0 },
     investors: { moms_card: 0, angel: 0, seed: 0, series_a: 0, softbank: 0, saudi_fund: 0 },
-    tokenCap: 1_000,
+    tokenCap: 1_000, marketingCount: 0,
     computeCap: 50,
     upgrades: [],
     milestonesHit: [],

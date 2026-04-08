@@ -67,6 +67,7 @@ export function deserializeState(raw: SerializedGameState | Record<string, unkno
     },
     tokenCap: typeof r.tokenCap === "number" ? r.tokenCap : 1_000,
     computeCap: typeof r.computeCap === "number" ? r.computeCap : 50,
+    marketingCount: typeof r.marketingCount === "number" ? r.marketingCount : 0,
     upgrades: (r.upgrades as GameState["upgrades"]) ?? [],
     milestonesHit: (r.milestonesHit as GameState["milestonesHit"]) ?? [],
     updatedAt: typeof r.updatedAt === "number" ? r.updatedAt : Date.now(),

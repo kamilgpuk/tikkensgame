@@ -74,6 +74,10 @@ export function useGame() {
   }, []);
 
   const register = useCallback(async (name: string, pin: string): Promise<{ nameTaken: boolean }> => {
+    // Clear any existing session first so stale WS/state can't bleed through
+    wsRef.current?.close();
+    localStorage.removeItem(PLAYER_ID_KEY);
+    localStorage.removeItem(PLAYER_NAME_KEY);
     const { playerId: pid, nameTaken } = await api.createPlayer(name, pin);
     storeAndConnect(pid, name);
     return { nameTaken };

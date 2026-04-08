@@ -47,6 +47,7 @@ export function createInitialState(playerId: string, playerName: string): GameSt
     clickPower: new Decimal(1),
     tokenCap: 1_000,
     computeCap: 50,
+    marketingCount: 0,
     hardware: {
       mac_mini: 0, gaming_pc: 0, a100: 0, tpu_pod: 0,
       gpu_cluster: 0, data_center: 0, hyperscaler: 0,
@@ -481,19 +482,23 @@ export function click(state: GameState, n = 1): GameState {
 
 // ─── Marketing spend ──────────────────────────────────────────────────────────
 
-const MARKETING_COST = 10;   // funding
-const MARKETING_HYPE = 1;    // hype gained
+/** Cost of the next marketing spend: 10 × 3^n (scales steeply with each purchase). */
+export function marketingCost(marketingCount: number): number {
+  return Math.floor(10 * Math.pow(3, marketingCount));
+}
 
 export function spendOnMarketing(state: GameState): BuyResult {
-  if (state.funding.lt(MARKETING_COST)) {
-    return { ok: false, error: `Need ${MARKETING_COST} funding` };
+  const cost = marketingCost(state.marketingCount);
+  if (state.funding.lt(cost)) {
+    return { ok: false, error: `Need $${cost} funding` };
   }
   return {
     ok: true,
     state: {
       ...state,
-      funding: state.funding.sub(MARKETING_COST),
-      hype: state.hype + MARKETING_HYPE,
+      funding: state.funding.sub(cost),
+      hype: state.hype + 1,
+      marketingCount: state.marketingCount + 1,
     },
   };
 }

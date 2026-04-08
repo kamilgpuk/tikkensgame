@@ -25,7 +25,7 @@ function Resource({ label, value, rate, rateNegative, tooltip, warn, full }: Res
         {full && <span className="cap-full"> FULL</span>}
       </span>
       <span className={`rate ${rateNegative ? "negative" : ""}`}>{rate}</span>
-      {warn && <span className="resource-warn">⚠ {warn}</span>}
+      <span className="resource-warn" style={{ visibility: warn ? "visible" : "hidden" }}>⚠ {warn ?? "x"}</span>
     </div>
   );
 }
