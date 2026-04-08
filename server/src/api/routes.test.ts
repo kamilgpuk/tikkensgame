@@ -143,11 +143,11 @@ describe("POST /api/players — registration", () => {
     expect(res.status).toBe(400);
   });
 
-  it("R8: duplicate name → 200 with nameTaken=true", async () => {
+  it("R8: duplicate name → 409 with error message", async () => {
     await supertest(app).post("/api/players").send({ playerName: "Alice", pin: "1234" });
     const res = await supertest(app).post("/api/players").send({ playerName: "Alice", pin: "5678" });
-    expect(res.status).toBe(200);
-    expect(res.body.nameTaken).toBe(true);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/name already taken/i);
   });
 
   it("R9: leading/trailing spaces → trimmed, accepted", async () => {

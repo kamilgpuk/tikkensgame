@@ -241,6 +241,36 @@ server.tool(
   }
 );
 
+// ─── sell_producer ────────────────────────────────────────────────────────────
+
+server.tool(
+  "sell_producer",
+  "Sell (remove) hardware or model units. Returns 50% of current cost. type = 'hardware' | 'model'",
+  {
+    type: z.enum(["hardware", "model"]).describe("Producer type to sell: hardware or model"),
+    id: z.string().describe("Producer ID (e.g. 'mac_mini', 'gpt2')"),
+    quantity: z.number().int().min(1).max(100).optional().default(1).describe("How many to sell"),
+  },
+  async ({ type, id, quantity }) => {
+    try {
+      const state = await apiPost<{ tokens: string; tokensPerSecond: string }>(
+        `/sell/${playerId()}`,
+        { producerType: type, id, quantity }
+      );
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Sold ${quantity}x ${id}. Tokens: ${state.tokens}, Tokens/s: ${state.tokensPerSecond}`,
+          },
+        ],
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
+    }
+  }
+);
+
 // ─── get_leaderboard ──────────────────────────────────────────────────────────
 
 server.tool("get_leaderboard", "Get the top 20 players on the global leaderboard", {}, async () => {
