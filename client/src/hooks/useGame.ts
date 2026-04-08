@@ -27,6 +27,7 @@ export function useGame() {
   const [mcpFlash, setMcpFlash] = useState(false);
   const mcpFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const activeSessionRef = useRef<string | null>(localStorage.getItem(PLAYER_ID_KEY));
 
   const connect = useCallback((pid: string, pname: string) => {
     const proto = window.location.protocol === "https:" ? "wss" : "ws";
@@ -39,7 +40,12 @@ export function useGame() {
     ws.onopen = () => setConnected(true);
     ws.onclose = () => {
       setConnected(false);
-      setTimeout(() => connect(pid, pname), 2000);
+      // Only reconnect if this session is still the active one
+      if (activeSessionRef.current === pid) {
+        setTimeout(() => {
+          if (activeSessionRef.current === pid) connect(pid, pname);
+        }, 2000);
+      }
     };
     ws.onerror = () => ws.close();
 
@@ -67,6 +73,7 @@ export function useGame() {
   }, [playerId, playerName, connect]);
 
   const storeAndConnect = useCallback((pid: string, name: string) => {
+    activeSessionRef.current = pid;
     localStorage.setItem(PLAYER_ID_KEY, pid);
     localStorage.setItem(PLAYER_NAME_KEY, name);
     setPlayerId(pid);
@@ -74,7 +81,8 @@ export function useGame() {
   }, []);
 
   const register = useCallback(async (name: string, pin: string): Promise<{ nameTaken: boolean }> => {
-    // Clear any existing session first so stale WS/state can't bleed through
+    // Clear active session first so the onclose handler won't reconnect with old credentials
+    activeSessionRef.current = null;
     wsRef.current?.close();
     localStorage.removeItem(PLAYER_ID_KEY);
     localStorage.removeItem(PLAYER_NAME_KEY);
@@ -115,6 +123,7 @@ export function useGame() {
   }, [playerId]);
 
   const logout = useCallback(() => {
+    activeSessionRef.current = null;
     wsRef.current?.close();
     localStorage.removeItem(PLAYER_ID_KEY);
     localStorage.removeItem(PLAYER_NAME_KEY);
