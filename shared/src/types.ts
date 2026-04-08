@@ -44,7 +44,11 @@ export type UpgradeId =
   | "poach_from_google"
   | "open_source_everything"
   | "acquire_startup"
-  | "agi_safety_theater";
+  | "agi_safety_theater"
+  | "distributed_cache"
+  | "sharded_storage"
+  | "infinite_context"
+  | "global_memory_net";
 
 export type MilestoneId =
   | "m1k"
@@ -110,7 +114,8 @@ export type UpgradeEffect =
   | { type: "investorMultiplier"; factor: number }
   | { type: "allProducerMultiplier"; factor: number }
   | { type: "hypeMilestoneMultiplier"; factor: number }
-  | { type: "hypeMultiplier"; factor: number };
+  | { type: "hypeMultiplier"; factor: number }
+  | { type: "tokenCapMultiplier"; factor: number };
 
 export interface MilestoneDef {
   id: MilestoneId;

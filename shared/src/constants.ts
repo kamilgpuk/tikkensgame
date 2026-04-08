@@ -49,7 +49,8 @@ export const MODEL_TIERS: Record<import("./types.js").ModelId, number> = {
   gpt2: 1, llama7b: 2, mistral7b: 3, llama70b: 4, gpt4: 5, claude_haiku: 6, agi: 7,
 };
 
-export function computeTokenCap(state: {
+/** Token cap from hardware and models only (no upgrade multipliers). */
+function hardwareTokenCap(state: {
   hardware: Record<import("./types.js").HardwareId, number>;
   models: Record<import("./types.js").ModelId, number>;
 }): number {
@@ -63,6 +64,23 @@ export function computeTokenCap(state: {
   cap += state.hardware.hyperscaler * 60_000_000;
   for (const [id, tier] of Object.entries(MODEL_TIERS) as [import("./types.js").ModelId, number][]) {
     cap += state.models[id] * 500 * tier;
+  }
+  return cap;
+}
+
+export function computeTokenCap(state: {
+  hardware: Record<import("./types.js").HardwareId, number>;
+  models: Record<import("./types.js").ModelId, number>;
+  upgrades?: import("./types.js").UpgradeId[];
+}): number {
+  let cap = hardwareTokenCap(state);
+  if (state.upgrades) {
+    for (const uid of state.upgrades) {
+      const def = UPGRADE_MAP[uid];
+      if (def?.effect.type === "tokenCapMultiplier") {
+        cap *= def.effect.factor;
+      }
+    }
   }
   return cap;
 }
@@ -419,6 +437,39 @@ export const UPGRADES: UpgradeDef[] = [
     currency: "funding",
     cost: 300_000,
     effect: { type: "modelMultiplier", factor: 1.5 },
+  },
+  // ── Token cap upgrades ──────────────────────────────────────────────────────
+  {
+    id: "distributed_cache",
+    name: "Distributed Cache",
+    description: "×2 token storage cap",
+    currency: "tokens",
+    cost: 150_000,
+    effect: { type: "tokenCapMultiplier", factor: 2 },
+  },
+  {
+    id: "sharded_storage",
+    name: "Sharded Storage",
+    description: "×3 token storage cap",
+    currency: "tokens",
+    cost: 10_000_000,
+    effect: { type: "tokenCapMultiplier", factor: 3 },
+  },
+  {
+    id: "infinite_context",
+    name: "Infinite Context Window",
+    description: "×5 token storage cap",
+    currency: "funding",
+    cost: 15_000,
+    effect: { type: "tokenCapMultiplier", factor: 5 },
+  },
+  {
+    id: "global_memory_net",
+    name: "Global Memory Network",
+    description: "×10 token storage cap",
+    currency: "funding",
+    cost: 500_000,
+    effect: { type: "tokenCapMultiplier", factor: 10 },
   },
 ];
 

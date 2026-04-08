@@ -200,13 +200,16 @@ export function setTickCallback(cb: StateCallback): void {
 export function startTickLoop(): void {
   if (tickInterval) return;
   let lastTick = Date.now();
+  let tickCount = 0;
   tickInterval = setInterval(() => {
     const now = Date.now();
     const elapsedMs = now - lastTick;
     lastTick = now;
+    tickCount++;
+    const updateDisplayRates = tickCount % 5 === 0;
 
     for (const [playerId, state] of sessions) {
-      const { state: newState, newMilestones } = tick(state, elapsedMs);
+      const { state: newState, newMilestones } = tick(state, elapsedMs, updateDisplayRates);
       sessions.set(playerId, newState);
 
       if (onTick) onTick(playerId, newState, newMilestones);

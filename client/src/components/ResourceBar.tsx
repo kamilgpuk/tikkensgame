@@ -1,5 +1,5 @@
 import type { GameState } from "@ai-hype/shared";
-import { prestigeTokenThreshold, reputationMultiplier } from "@ai-hype/shared";
+import { prestigeTokenThreshold, prestigeFundingThreshold, reputationMultiplier } from "@ai-hype/shared";
 import { fmt, fmtRate } from "../lib/format.js";
 
 interface Props {
@@ -29,7 +29,9 @@ function Resource({ label, value, rate, rateNegative, tooltip, full }: ResourceP
 }
 
 export function ResourceBar({ state }: Props) {
-  const canPrestige = state.totalTokensEarned.gte(prestigeTokenThreshold(state.prestigeCount));
+  const canPrestige =
+    state.totalTokensEarned.gte(prestigeTokenThreshold(state.prestigeCount)) &&
+    state.funding.gte(prestigeFundingThreshold(state.prestigeCount));
   const tokenCap = state.tokenCap;
   const computeCap = state.computeCap;
 

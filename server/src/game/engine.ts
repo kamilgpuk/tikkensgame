@@ -391,7 +391,7 @@ export interface TickResult {
   newMilestones: MilestoneId[];
 }
 
-export function tick(state: GameState, elapsedMs: number): TickResult {
+export function tick(state: GameState, elapsedMs: number, updateDisplayRates = true): TickResult {
   const elapsed = elapsedMs / 1000;
   const rates = computeRates(state);
 
@@ -460,10 +460,12 @@ export function tick(state: GameState, elapsedMs: number): TickResult {
     tokenCap,
     computeCap,
     milestonesHit,
-    tokensPerSecond: rates.tokensPerSecond,
-    computePerSecond: rates.computePerSecond,
-    fundingPerSecond: rates.fundingPerSecond,
-    clickPower: rates.clickPower,
+    // Only refresh displayed rates on the designated ticks to avoid flicker
+    // from compute-constrained models flipping online/offline each tick
+    tokensPerSecond: updateDisplayRates ? rates.tokensPerSecond : state.tokensPerSecond,
+    computePerSecond: updateDisplayRates ? rates.computePerSecond : state.computePerSecond,
+    fundingPerSecond: updateDisplayRates ? rates.fundingPerSecond : state.fundingPerSecond,
+    clickPower: updateDisplayRates ? rates.clickPower : state.clickPower,
     updatedAt: state.updatedAt + elapsedMs,
   };
 
