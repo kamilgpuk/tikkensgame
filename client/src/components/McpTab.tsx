@@ -90,7 +90,9 @@ export function McpTab({ playerName }: Props) {
         <li><code>get_available_actions</code> — what's affordable + ROI estimates</li>
         <li><code>click</code> — generate tokens (one click per call)</li>
         <li><code>buy_producer(type, id)</code> — buy hardware / models / investors</li>
+        <li><code>sell_producer(type, id)</code> — sell hardware / models (50% refund)</li>
         <li><code>buy_upgrade(id)</code> — buy upgrades</li>
+        <li><code>spend_on_marketing</code> — spend 10 funding for +1 hype</li>
         <li><code>prestige</code> — go IPO when ready</li>
         <li><code>get_leaderboard</code> — check rankings</li>
       </ul>
