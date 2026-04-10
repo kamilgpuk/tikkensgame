@@ -111,12 +111,13 @@ export async function resetDb(): Promise<void> {
 
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
 
-export async function getLeaderboard(limit = 20): Promise<LeaderboardEntry[]> {
-  const { data, error } = await supabase
+export async function getLeaderboard(limit?: number): Promise<LeaderboardEntry[]> {
+  let query = supabase
     .from("players")
     .select("id, name, score, state, updated_at")
-    .order("score", { ascending: false })
-    .limit(limit);
+    .order("score", { ascending: false });
+  if (limit !== undefined) query = query.limit(limit);
+  const { data, error } = await query;
 
   if (error || !data) return [];
 

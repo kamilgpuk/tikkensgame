@@ -291,7 +291,7 @@ router.get("/actions/:playerId", async (req: Request, res: Response) => {
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
 
 router.get("/leaderboard", async (_req: Request, res: Response) => {
-  res.json(await getLeaderboard(20));
+  res.json(await getLeaderboard());
 });
 
 // ─── Stats (for landing page) ─────────────────────────────────────────────────
