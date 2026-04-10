@@ -25,7 +25,7 @@ export function McpTab({ playerName }: Props) {
           command: "node",
           args: [entrypoint],
           env: {
-            MCP_PLAYER_NAME: playerName,
+            MCP_PLAYER_NAME: "<your-name>",
             MCP_PLAYER_PIN: "<your-pin>",
             API_URL: "https://www.tikkensgame.com/api",
           },
