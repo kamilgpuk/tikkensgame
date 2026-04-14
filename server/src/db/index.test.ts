@@ -46,12 +46,13 @@ function makeSupabaseClient() {
             error: null,
           }),
         }),
-        order: (_col: string, _opts: object) => ({
-          limit: (n: number) => Promise.resolve({
-            data: [...dbStore].sort((a, b) => b.score - a.score).slice(0, n),
-            error: null,
-          }),
-        }),
+        order: (_col: string, _opts: object) => {
+          const sorted = [...dbStore].sort((a, b) => b.score - a.score);
+          // Return a Promise that also has .limit() for callers that chain it
+          const p = Promise.resolve({ data: sorted, error: null }) as Promise<{ data: Row[]; error: null }> & { limit: (n: number) => Promise<{ data: Row[]; error: null }> };
+          p.limit = (n: number) => Promise.resolve({ data: sorted.slice(0, n), error: null });
+          return p;
+        },
       }),
       insert: (payload: Row) => {
         dbStore.push({ ...payload, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
@@ -91,10 +92,11 @@ const {
   findPlayerByNameAndPin,
   resetDb,
   getLeaderboard,
+  invalidateLeaderboardCache,
 } = await import("./index.js");
 const { createInitialState } = await import("../game/engine.js");
 
-beforeEach(() => { dbStore = []; });
+beforeEach(() => { dbStore = []; invalidateLeaderboardCache(); });
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 

@@ -14,6 +14,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: { persistSession: false },
 });
 
+// ─── Leaderboard cache (declared early so saveState can invalidate it) ────────
+
+const LEADERBOARD_CACHE_TTL_MS = 30_000;
+let leaderboardCache: { data: LeaderboardEntry[]; fetchedAt: number } | null = null;
+let leaderboardInflight: Promise<LeaderboardEntry[]> | null = null;
+
 // ─── Player operations ────────────────────────────────────────────────────────
 
 export async function saveState(state: GameState): Promise<void> {
@@ -24,6 +30,7 @@ export async function saveState(state: GameState): Promise<void> {
     .update({ state: serialized, score, updated_at: new Date().toISOString() })
     .eq("id", state.playerId);
   if (error) throw new Error(`Supabase update failed: ${String(error.message ?? error).slice(0, 300)}`);
+  leaderboardCache = null; // invalidate so next fetch reflects updated score
 }
 
 export async function loadState(playerId: string): Promise<GameState | null> {
@@ -111,17 +118,15 @@ export async function resetDb(): Promise<void> {
 
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
 
-export async function getLeaderboard(limit?: number): Promise<LeaderboardEntry[]> {
-  let query = supabase
+async function fetchLeaderboardFromDb(): Promise<LeaderboardEntry[]> {
+  const { data, error } = await supabase
     .from("players")
     .select("id, name, score, state, updated_at")
     .order("score", { ascending: false });
-  if (limit !== undefined) query = query.limit(limit);
-  const { data, error } = await query;
 
   if (error || !data) return [];
 
-  return data.map((row, i) => {
+  const result = data.map((row, i) => {
     const state = deserializeState(row.state as Record<string, unknown>);
     return {
       rank: i + 1,
@@ -133,4 +138,25 @@ export async function getLeaderboard(limit?: number): Promise<LeaderboardEntry[]
       lastActive: new Date(row.updated_at as string).getTime(),
     };
   });
+  leaderboardCache = { data: result, fetchedAt: Date.now() };
+  return result;
+}
+
+export async function getLeaderboard(limit?: number): Promise<LeaderboardEntry[]> {
+  if (leaderboardCache && Date.now() - leaderboardCache.fetchedAt < LEADERBOARD_CACHE_TTL_MS) {
+    const cached = leaderboardCache.data;
+    return limit !== undefined ? cached.slice(0, limit) : cached;
+  }
+  // Deduplicate concurrent callers — share one inflight fetch
+  if (!leaderboardInflight) {
+    leaderboardInflight = fetchLeaderboardFromDb().finally(() => {
+      leaderboardInflight = null;
+    });
+  }
+  const data = await leaderboardInflight;
+  return limit !== undefined ? data.slice(0, limit) : data;
+}
+
+export function invalidateLeaderboardCache(): void {
+  leaderboardCache = null;
 }
