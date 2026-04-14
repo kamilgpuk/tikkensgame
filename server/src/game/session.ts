@@ -30,6 +30,11 @@ const SAVE_INTERVAL_MS = 2_000;
 const FLUSH_INTERVAL_MS = 10_000;
 const TICK_INTERVAL_MS = 100;
 
+// Circuit breaker: back off after repeated Supabase failures
+let dbFailCount = 0;
+let dbBackoffUntil = 0;
+const DB_BACKOFF_MS = [0, 5_000, 15_000, 60_000]; // 0s, 5s, 15s, 1min caps
+
 let onMilestone: MilestoneCallback | null = null;
 
 export function setMilestoneCallback(cb: MilestoneCallback): void {
@@ -160,13 +165,23 @@ export function doPrestige(playerId: string): BuyResult {
 }
 
 async function persistSession(playerId: string, state: GameState): Promise<void> {
+  const now = Date.now();
+  if (now < dbBackoffUntil) return; // circuit breaker: skip silently during backoff
   try {
     await saveState(state);
-    lastSaved.set(playerId, Date.now());
+    lastSaved.set(playerId, now);
     dirty.delete(playerId);
+    if (dbFailCount > 0) {
+      console.log(`[persist] DB recovered after ${dbFailCount} failure(s)`);
+      dbFailCount = 0;
+    }
   } catch (e) {
-    console.error(`[persist] SAVE FAILED for player ${playerId}:`, e);
-    // Leave in dirty set — will retry on next flush
+    dbFailCount++;
+    const backoff = DB_BACKOFF_MS[Math.min(dbFailCount, DB_BACKOFF_MS.length - 1)];
+    dbBackoffUntil = now + backoff;
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[persist] SAVE FAILED (attempt ${dbFailCount}, backoff ${backoff}ms) for player ${playerId}: ${msg.slice(0, 200)}`);
+    // Leave in dirty set — will retry after backoff
   }
 }
 

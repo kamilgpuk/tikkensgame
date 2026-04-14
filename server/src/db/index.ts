@@ -23,7 +23,7 @@ export async function saveState(state: GameState): Promise<void> {
     .from("players")
     .update({ state: serialized, score, updated_at: new Date().toISOString() })
     .eq("id", state.playerId);
-  if (error) throw new Error(`Supabase update failed: ${error.message}`);
+  if (error) throw new Error(`Supabase update failed: ${String(error.message ?? error).slice(0, 300)}`);
 }
 
 export async function loadState(playerId: string): Promise<GameState | null> {
