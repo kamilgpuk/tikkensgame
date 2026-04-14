@@ -33,6 +33,7 @@ const TICK_INTERVAL_MS = 100;
 // Circuit breaker: back off after repeated Supabase failures
 let dbFailCount = 0;
 let dbBackoffUntil = 0;
+let dbCallInFlight = false; // only one DB call at a time — prevents concurrent flood
 const DB_BACKOFF_MS = [0, 5_000, 15_000, 60_000]; // 0s, 5s, 15s, 1min caps
 
 let onMilestone: MilestoneCallback | null = null;
@@ -166,10 +167,12 @@ export function doPrestige(playerId: string): BuyResult {
 
 async function persistSession(playerId: string, state: GameState): Promise<void> {
   const now = Date.now();
-  if (now < dbBackoffUntil) return; // circuit breaker: skip silently during backoff
+  if (now < dbBackoffUntil) return; // circuit breaker: skip during backoff
+  if (dbCallInFlight) return;       // prevent concurrent calls — set before await so it's visible immediately
+  dbCallInFlight = true;
   try {
     await saveState(state);
-    lastSaved.set(playerId, now);
+    lastSaved.set(playerId, Date.now());
     dirty.delete(playerId);
     if (dbFailCount > 0) {
       console.log(`[persist] DB recovered after ${dbFailCount} failure(s)`);
@@ -178,10 +181,13 @@ async function persistSession(playerId: string, state: GameState): Promise<void>
   } catch (e) {
     dbFailCount++;
     const backoff = DB_BACKOFF_MS[Math.min(dbFailCount, DB_BACKOFF_MS.length - 1)];
-    dbBackoffUntil = now + backoff;
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error(`[persist] SAVE FAILED (attempt ${dbFailCount}, backoff ${backoff}ms) for player ${playerId}: ${msg.slice(0, 200)}`);
+    dbBackoffUntil = Date.now() + backoff;
+    const raw = e instanceof Error ? e.message : String(e);
+    const msg = raw.replace(/\s+/g, " ").slice(0, 150); // collapse newlines + truncate
+    console.error(`[persist] SAVE FAILED (attempt ${dbFailCount}, backoff ${backoff}ms): ${msg}`);
     // Leave in dirty set — will retry after backoff
+  } finally {
+    dbCallInFlight = false;
   }
 }
 
@@ -259,15 +265,16 @@ export function clearAllSessions(): void {
 export async function releaseSession(playerId: string): Promise<void> {
   const state = sessions.get(playerId);
   if (!state) return;
-  try {
-    await saveState(state);
-    lastSaved.set(playerId, Date.now());
-  } catch {
-    // Best-effort — state remains in dirty for the next flush attempt
-  }
+  // Always evict from memory immediately — dirty set handles retry if save fails
   sessions.delete(playerId);
   lastSaved.delete(playerId);
   dirty.delete(playerId);
+  // Best-effort final save (bypasses inFlight gate — this is intentional on disconnect)
+  try {
+    await saveState(state);
+  } catch {
+    // State already evicted; will be reloaded from last good DB snapshot on reconnect
+  }
 }
 
 export function getOnlineCount(): number {
