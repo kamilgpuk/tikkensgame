@@ -55,6 +55,7 @@ jest.unstable_mockModule("../db/index.js", () => ({
   getLeaderboard: mockGetLeaderboard,
   resetDb: mockResetDb,
   playerExists: mockPlayerExists,
+  invalidateLeaderboardCache: jest.fn(),
 }));
 
 jest.unstable_mockModule("../ws/handler.js", () => ({
