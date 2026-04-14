@@ -3,7 +3,7 @@ import type { IncomingMessage } from "http";
 import type { Server } from "http";
 import type { GameState, MilestoneId, ServerMessage } from "@ai-hype/shared";
 import { MILESTONE_MAP, serializeState } from "@ai-hype/shared";
-import { loadOrCreateSession, setTickCallback, setMilestoneCallback } from "../game/session.js";
+import { loadOrCreateSession, releaseSession, setTickCallback, setMilestoneCallback } from "../game/session.js";
 import { getLeaderboard } from "../db/index.js";
 
 // Map from playerId → Set of WebSocket connections
@@ -58,6 +58,7 @@ export function setupWebSocket(server: Server): WebSocketServer {
       playerSockets.get(playerId)?.delete(ws);
       if (playerSockets.get(playerId)?.size === 0) {
         playerSockets.delete(playerId);
+        releaseSession(playerId).catch(() => null); // save + evict from memory
       }
     });
 

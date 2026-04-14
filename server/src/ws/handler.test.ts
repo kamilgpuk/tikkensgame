@@ -8,7 +8,9 @@ import Decimal from "break_eternity.js";
 // ─── In-memory DB mock ────────────────────────────────────────────────────────
 
 const mockStore = new Map<string, Record<string, unknown>>();
-const mockSaveState = jest.fn(async () => {});
+const mockSaveState = jest.fn(async (state: Record<string, unknown>) => {
+  mockStore.set(state.playerId as string, state);
+});
 const mockLoadState = jest.fn(async (playerId: string) => mockStore.get(playerId) ?? null);
 const mockGetLeaderboard = jest.fn(async () => []);
 const mockCreatePlayer = jest.fn(async () => ({ playerId: "", nameTaken: false }));

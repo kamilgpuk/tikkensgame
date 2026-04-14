@@ -27,10 +27,18 @@ function scoreOf(state: GameState): number {
 }
 
 export const saveState = jest.fn(async (state: GameState): Promise<void> => {
-  const row = store.get(state.playerId);
-  if (row) {
-    row.state = { ...state };
-    row.score = scoreOf(state);
+  const existing = store.get(state.playerId);
+  if (existing) {
+    existing.state = { ...state };
+    existing.score = scoreOf(state);
+  } else {
+    store.set(state.playerId, {
+      id: state.playerId,
+      name: state.playerName,
+      pinHash: "",
+      state: { ...state },
+      score: scoreOf(state),
+    });
   }
 });
 

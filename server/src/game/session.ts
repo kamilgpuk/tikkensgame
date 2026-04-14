@@ -251,6 +251,25 @@ export function clearAllSessions(): void {
   dirty.clear();
 }
 
+/**
+ * Save and evict a player's session from memory.
+ * Call this when the player's last WebSocket disconnects.
+ * On reconnect, loadOrCreateSession will reload from DB.
+ */
+export async function releaseSession(playerId: string): Promise<void> {
+  const state = sessions.get(playerId);
+  if (!state) return;
+  try {
+    await saveState(state);
+    lastSaved.set(playerId, Date.now());
+  } catch {
+    // Best-effort — state remains in dirty for the next flush attempt
+  }
+  sessions.delete(playerId);
+  lastSaved.delete(playerId);
+  dirty.delete(playerId);
+}
+
 export function getOnlineCount(): number {
   return sessions.size;
 }
