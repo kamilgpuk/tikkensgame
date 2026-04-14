@@ -107,6 +107,8 @@ export const getLeaderboard = jest.fn(async (limit: number = 20): Promise<Leader
     }));
 });
 
+export const invalidateLeaderboardCache = jest.fn((): void => {});
+
 /** Call in beforeEach/afterEach to reset store and mock call counts. */
 export const __resetStore = (): void => {
   store.clear();

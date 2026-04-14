@@ -8,6 +8,7 @@ import { getAvailableActions } from "../game/engine.js";
 import {
   loadOrCreateSession,
   getSession,
+  setSession,
   doClick,
   doBuyHardware,
   doBuyModel,
@@ -24,9 +25,11 @@ import {
 import {
   getLeaderboard,
   loadState,
+  saveState,
   resetDb,
   createPlayer,
   findPlayerByNameAndPin,
+  invalidateLeaderboardCache,
 } from "../db/index.js";
 import { broadcastMcpAction } from "../ws/handler.js";
 
@@ -302,6 +305,42 @@ router.get("/stats", async (_req: Request, res: Response) => {
     globalTokensEarned: getGlobalTokensEarned(),
     topPlayers: await getLeaderboard(5),
   });
+});
+
+// ─── Admin patch player ───────────────────────────────────────────────────────
+
+router.post("/admin/patch-player", async (req: Request, res: Response) => {
+  const secret = process.env.ADMIN_SECRET;
+  if (!secret || req.headers["x-admin-secret"] !== secret) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const { playerId, playerName, prestigeCount } = req.body as {
+    playerId: string;
+    playerName?: string;
+    prestigeCount?: number;
+  };
+  if (!playerId) {
+    res.status(400).json({ error: "playerId required" });
+    return;
+  }
+
+  // Load current state — prefer live session, fall back to DB
+  let state = getSession(playerId) ?? await loadState(playerId);
+  if (!state) {
+    res.status(404).json({ error: "Player not found" });
+    return;
+  }
+
+  if (playerName !== undefined) state = { ...state, playerName };
+  if (prestigeCount !== undefined) state = { ...state, prestigeCount };
+
+  // Patch both in-memory session (if live) and DB atomically
+  setSession(state);
+  await saveState(state);
+  invalidateLeaderboardCache();
+
+  res.json({ ok: true, playerId, playerName: state.playerName, prestigeCount: state.prestigeCount });
 });
 
 // ─── Admin reset ──────────────────────────────────────────────────────────────
