@@ -5,6 +5,7 @@ import type { GameState, MilestoneId, ServerMessage } from "@ai-hype/shared";
 import { MILESTONE_MAP, serializeState } from "@ai-hype/shared";
 import { loadOrCreateSession, releaseSession, setTickCallback, setMilestoneCallback } from "../game/session.js";
 import { getLeaderboard } from "../db/index.js";
+import { isShutdown } from "../shutdown.js";
 
 // Map from playerId → Set of WebSocket connections
 const playerSockets = new Map<string, Set<WebSocket>>();
@@ -39,6 +40,11 @@ export function setupWebSocket(server: Server): WebSocketServer {
 
     if (!playerId) {
       ws.close(1008, "playerId required");
+      return;
+    }
+
+    if (isShutdown()) {
+      ws.close(1001, "Game has shut down. Thanks for playing.");
       return;
     }
 

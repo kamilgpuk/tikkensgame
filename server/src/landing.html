@@ -147,6 +147,37 @@
       body { padding: 24px 16px; font-size: 13px; }
       .lb-title { display: none; }
     }
+
+    /* ── shutdown popup ── */
+    .sd-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .sd-box {
+      background: #111;
+      border: 1px solid #333;
+      padding: 28px 32px;
+      max-width: 480px;
+      width: 100%;
+    }
+    .sd-box h2 {
+      color: #cc4444;
+      font-size: 0.95rem;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+      margin-bottom: 14px;
+    }
+    .sd-box p { color: var(--fg); line-height: 1.8; margin-bottom: 10px; }
+    .sd-box .sig { color: var(--muted); margin-bottom: 20px; }
+    .sd-ended {
+      display: none;
+      color: #cc4444;
+      margin: 4px 0 8px;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
@@ -158,8 +189,10 @@
   <div class="prompt-line"><span class="prompt">&gt;</span> inspired by <a style="color:inherit" href="https://kittensgame.com" target="_blank">kittensgame.com</a>. but make it AI.</div>
   <div class="prompt-line"><span class="prompt">&gt;</span> play yourself — or connect Claude via MCP and watch it <em>destroy</em> the leaderboard.<span class="cursor"></span></div>
 
+  <div class="sd-ended" id="sd-ended">game has ended — thanks for playing.</div>
+
   <div class="actions">
-    <a class="btn" href="/play">[ play ]</a>
+    <a class="btn" id="play-btn" href="/play">[ play ]</a>
     <button class="btn btn-dim" onclick="toggleHow()">[ how it works ]</button>
     <a class="btn btn-dim" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank">[ support on patreon ]</a>
   </div>
@@ -207,7 +240,35 @@
     <a style="color:inherit" href="https://kamilpuk.com" target="_blank">kamilpuk.com</a>
   </div>
 
+  <!-- Shutdown notice popup -->
+  <div class="sd-backdrop" id="sd-popup" style="display:none">
+    <div class="sd-box">
+      <h2>Tikkens Game is shutting down on April 17th at 9pm CET</h2>
+      <p>This has been a fun hobby project, but the server costs have grown beyond what makes sense for me to maintain despite some optimisations.</p>
+      <p>Thank you. Let's stay in touch.</p>
+      <p class="sig">— Kamil</p>
+      <button class="btn" onclick="dismissShutdown()">[ ok ]</button>
+    </div>
+  </div>
+
   <script>
+    const SHUTDOWN_AT = new Date('2026-04-17T21:00:00+02:00').getTime();
+    const SD_KEY = 'tikkens_shutdown_v1';
+
+    function dismissShutdown() {
+      document.getElementById('sd-popup').style.display = 'none';
+      localStorage.setItem(SD_KEY, '1');
+    }
+
+    (function initShutdown() {
+      if (Date.now() >= SHUTDOWN_AT) {
+        document.getElementById('play-btn').style.display = 'none';
+        document.getElementById('sd-ended').style.display = 'block';
+      } else if (!localStorage.getItem(SD_KEY)) {
+        document.getElementById('sd-popup').style.display = 'flex';
+      }
+    })();
+
     function toggleHow() {
       const block = document.getElementById('how-block');
       const btn = document.querySelector('button.btn-dim');

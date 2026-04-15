@@ -11,6 +11,7 @@ import { Leaderboard } from "./components/Leaderboard.js";
 import { PrestigeModal } from "./components/PrestigeModal.js";
 import { HowToPlay } from "./components/HowToPlay.js";
 import { McpTab } from "./components/McpTab.js";
+import { ShutdownNotice } from "./components/ShutdownNotice.js";
 import { CapabilityLog } from "./components/CapabilityLog.js";
 import { getFounderTitle, prestigeTokenThreshold, prestigeFundingThreshold } from "@ai-hype/shared";
 import { fmt } from "./lib/format.js";
@@ -39,6 +40,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <ShutdownNotice />
       <header className="header">
         <div className="header-left">
           <span className="game-title">T'KKENS</span>

@@ -409,6 +409,59 @@ nav button.active { color: var(--fg); border-bottom: 1px solid var(--fg); }
 .btn-confirm { flex: 1; padding: 10px; font-weight: bold; border-color: var(--green); color: var(--green); }
 .btn-cancel { flex: 1; padding: 10px; }
 
+/* ── Shutdown notice ───────────────────────────────────────────────────────── */
+
+.sd-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.88);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+  padding: 24px;
+}
+.sd-overlay {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+  padding: 24px;
+}
+.sd-modal {
+  border: 1px solid var(--border);
+  padding: 32px;
+  background: var(--bg);
+  max-width: 420px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sd-modal h2 { font-size: 0.95rem; letter-spacing: 0.05em; color: var(--red, #cc4444); }
+.sd-modal p  { color: var(--muted); font-size: 0.9rem; line-height: 1.7; }
+.sd-sig      { color: var(--fg) !important; }
+.sd-ok {
+  align-self: flex-start;
+  margin-top: 4px;
+  color: var(--green);
+  border: 1px solid var(--green);
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 4px 14px;
+  cursor: pointer;
+}
+.sd-ok:hover { background: var(--green); color: var(--bg); }
+.sd-link {
+  align-self: flex-start;
+  margin-top: 4px;
+  color: var(--green);
+  border: 1px solid var(--green);
+  font-family: inherit;
+  font-size: inherit;
+  padding: 4px 14px;
+  text-decoration: none;
+}
+.sd-link:hover { background: var(--green); color: var(--bg); }
+
 /* ── First-time hint ───────────────────────────────────────────────────────── */
 
 .first-hint {

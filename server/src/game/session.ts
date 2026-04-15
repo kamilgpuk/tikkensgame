@@ -4,6 +4,7 @@
  * States are persisted to Supabase periodically and on mutations.
  */
 import { GameState, MilestoneId } from "@ai-hype/shared";
+import { isShutdown } from "../shutdown.js";
 import {
   createInitialState,
   tick,
@@ -223,6 +224,11 @@ export function startTickLoop(): void {
   let lastTick = Date.now();
   let tickCount = 0;
   tickInterval = setInterval(() => {
+    if (isShutdown()) {
+      stopTickLoop();
+      return;
+    }
+
     const now = Date.now();
     const elapsedMs = now - lastTick;
     lastTick = now;

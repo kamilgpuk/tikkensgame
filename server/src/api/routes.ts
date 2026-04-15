@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcryptjs";
+import { isShutdown } from "../shutdown.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import type { HardwareId, ModelId, InvestorId, UpgradeId } from "@ai-hype/shared";
@@ -100,6 +101,10 @@ export const router = Router();
 // ─── Register ─────────────────────────────────────────────────────────────────
 
 router.post("/players", async (req: Request, res: Response) => {
+  if (isShutdown()) {
+    res.status(503).json({ error: "T'kkens has shut down. Thanks for playing." });
+    return;
+  }
   const { playerName, pin } = req.body as { playerName?: string; pin?: string };
 
   if (!validateName(playerName)) {
@@ -128,6 +133,10 @@ router.post("/players", async (req: Request, res: Response) => {
 // ─── Login / recovery ─────────────────────────────────────────────────────────
 
 router.post("/auth", async (req: Request, res: Response) => {
+  if (isShutdown()) {
+    res.status(503).json({ error: "T'kkens has shut down. Thanks for playing." });
+    return;
+  }
   const { playerName, pin } = req.body as { playerName?: string; pin?: string };
 
   if (!validateName(playerName) || !validatePin(pin)) {
