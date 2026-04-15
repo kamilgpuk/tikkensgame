@@ -1,4 +1,5 @@
 import express from "express";
+import compression from "compression";
 import cors from "cors";
 import http from "http";
 import path from "path";
@@ -13,6 +14,7 @@ const PORT = Number(process.env.PORT ?? 3000);
 const CLIENT_DIST = path.join(__dirname, "public");
 
 const app = express();
+app.use(compression());
 app.use(cors());
 app.use(express.json());
 
@@ -23,8 +25,17 @@ app.use("/api", router);
 const LANDING = path.join(__dirname, "landing.html");
 app.get("/", (_req, res) => res.sendFile(LANDING));
 
-// React game app at /play (and all sub-paths)
-app.use("/play", express.static(CLIENT_DIST));
+// Vite-hashed assets: immutable, 1-year cache (safe because filenames change on rebuild)
+app.use(
+  "/play/assets",
+  express.static(path.join(CLIENT_DIST, "assets"), {
+    maxAge: "1y",
+    immutable: true,
+  })
+);
+
+// React game app at /play (and all sub-paths) — no-cache on index.html so Cloudflare revalidates
+app.use("/play", express.static(CLIENT_DIST, { maxAge: 0 }));
 app.get("/play*", (_req, res) => res.sendFile(path.join(CLIENT_DIST, "index.html")));
 
 // Static assets (JS/CSS chunks from Vite build)
