@@ -40,21 +40,6 @@
     .prompt { color: var(--green); }
     .prompt-line { margin: 4px 0; }
 
-    /* ── cursor blink ── */
-    .cursor {
-      display: inline-block;
-      width: 8px;
-      height: 14px;
-      background: var(--green);
-      vertical-align: middle;
-      margin-left: 2px;
-      animation: blink 1s step-end infinite;
-    }
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0; }
-    }
-
     /* ── buttons ── */
     .actions { margin: 20px 0; display: flex; gap: 16px; flex-wrap: wrap; }
     .btn {
@@ -143,40 +128,15 @@
       padding-top: 12px;
     }
 
+    .sd-ended {
+      color: #cc4444;
+      margin: 12px 0 4px;
+      font-size: 0.9rem;
+    }
+
     @media (max-width: 480px) {
       body { padding: 24px 16px; font-size: 13px; }
       .lb-title { display: none; }
-    }
-
-    /* ── shutdown popup ── */
-    .sd-backdrop {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.88);
-      z-index: 100;
-      display: flex; align-items: center; justify-content: center;
-      padding: 24px;
-    }
-    .sd-box {
-      background: #111;
-      border: 1px solid #333;
-      padding: 28px 32px;
-      max-width: 480px;
-      width: 100%;
-    }
-    .sd-box h2 {
-      color: #cc4444;
-      font-size: 0.95rem;
-      font-weight: bold;
-      letter-spacing: 0.05em;
-      margin-bottom: 14px;
-    }
-    .sd-box p { color: var(--fg); line-height: 1.8; margin-bottom: 10px; }
-    .sd-box .sig { color: var(--muted); margin-bottom: 20px; }
-    .sd-ended {
-      display: none;
-      color: #cc4444;
-      margin: 4px 0 8px;
-      font-size: 0.9rem;
     }
   </style>
 </head>
@@ -187,12 +147,11 @@
 
   <div class="prompt-line"><span class="prompt">&gt;</span> idle clicker. generate tokens. build AGI.</div>
   <div class="prompt-line"><span class="prompt">&gt;</span> inspired by <a style="color:inherit" href="https://kittensgame.com" target="_blank">kittensgame.com</a>. but make it AI.</div>
-  <div class="prompt-line"><span class="prompt">&gt;</span> play yourself — or connect Claude via MCP and watch it <em>destroy</em> the leaderboard.<span class="cursor"></span></div>
+  <div class="prompt-line"><span class="prompt">&gt;</span> play yourself — or connect Claude via MCP and watch it <em>destroy</em> the leaderboard.</div>
 
-  <div class="sd-ended" id="sd-ended">game has ended — thanks for playing.</div>
+  <div class="sd-ended">game has ended — thanks for playing.</div>
 
   <div class="actions">
-    <a class="btn" id="play-btn" href="/play">[ play ]</a>
     <button class="btn btn-dim" onclick="toggleHow()">[ how it works ]</button>
     <a class="btn btn-dim" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank">[ support on patreon ]</a>
   </div>
@@ -223,8 +182,8 @@
     </pre>
   </div>
 
-  <div class="section-title">LEADERBOARD</div>
-  <div id="leaderboard"><div class="lb-empty">loading...</div></div>
+  <div class="section-title">FINAL LEADERBOARD</div>
+  <div id="leaderboard"></div>
   <div class="lb-pagination" id="lb-pagination" style="display:none">
     <button id="lb-prev" onclick="lbPage(-1)">[ &lt; prev ]</button>
     <span class="lb-page-info" id="lb-page-info"></span>
@@ -240,35 +199,7 @@
     <a style="color:inherit" href="https://kamilpuk.com" target="_blank">kamilpuk.com</a>
   </div>
 
-  <!-- Shutdown notice popup -->
-  <div class="sd-backdrop" id="sd-popup" style="display:none">
-    <div class="sd-box">
-      <h2>Tikkens Game is shutting down on April 17th at 9pm CET</h2>
-      <p>This has been a fun hobby project, but the server costs have grown beyond what makes sense for me to maintain despite some optimisations.</p>
-      <p>Thank you. Let's stay in touch.</p>
-      <p class="sig">— Kamil</p>
-      <button class="btn" onclick="dismissShutdown()">[ ok ]</button>
-    </div>
-  </div>
-
   <script>
-    const SHUTDOWN_AT = new Date('2026-04-17T21:00:00+02:00').getTime();
-    const SD_KEY = 'tikkens_shutdown_v1';
-
-    function dismissShutdown() {
-      document.getElementById('sd-popup').style.display = 'none';
-      localStorage.setItem(SD_KEY, '1');
-    }
-
-    (function initShutdown() {
-      if (Date.now() >= SHUTDOWN_AT) {
-        document.getElementById('play-btn').style.display = 'none';
-        document.getElementById('sd-ended').style.display = 'block';
-      } else if (!localStorage.getItem(SD_KEY)) {
-        document.getElementById('sd-popup').style.display = 'flex';
-      }
-    })();
-
     function toggleHow() {
       const block = document.getElementById('how-block');
       const btn = document.querySelector('button.btn-dim');
@@ -285,9 +216,38 @@
       return n.toExponential(2);
     }
 
+    function esc(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
     const PAGE_SIZE = 10;
-    let allPlayers = [];
     let currentPage = 0;
+
+    const allPlayers = [
+      {"rank":1,"playerName":"kacper","score":9223221196158582000,"title":"Thought Leader"},
+      {"rank":2,"playerName":"killer","score":4238499746348085000,"title":"Indie Hacker"},
+      {"rank":3,"playerName":"mokenaj","score":78504910751506,"title":"Visionary"},
+      {"rank":4,"playerName":"zamykam","score":3708257524,"title":"Indie Hacker"},
+      {"rank":5,"playerName":"Adammadam","score":1255027789,"title":"Indie Hacker"},
+      {"rank":6,"playerName":"Qwerty","score":67875811,"title":"Indie Hacker"},
+      {"rank":7,"playerName":"kamil","score":10500278,"title":"First-Time Founder"},
+      {"rank":8,"playerName":"dshsehsjahf 44 44","score":5500000,"title":"First-Time Founder"},
+      {"rank":9,"playerName":"7duc","score":5000000,"title":"First-Time Founder"},
+      {"rank":10,"playerName":"joe","score":24469,"title":"Indie Hacker"},
+      {"rank":11,"playerName":"Ktis","score":502,"title":"Indie Hacker"},
+      {"rank":12,"playerName":"Scott","score":128,"title":"Indie Hacker"},
+      {"rank":13,"playerName":"Boris","score":68,"title":"Indie Hacker"},
+      {"rank":14,"playerName":"null","score":54,"title":"Indie Hacker"},
+      {"rank":15,"playerName":"test","score":20,"title":"Indie Hacker"},
+      {"rank":16,"playerName":"dude","score":6,"title":"Indie Hacker"},
+      {"rank":17,"playerName":"vik","score":0,"title":"Indie Hacker"},
+      {"rank":18,"playerName":"eric","score":0,"title":"Indie Hacker"},
+      {"rank":19,"playerName":"asdf","score":0,"title":"Indie Hacker"}
+    ];
 
     function renderLeaderboard() {
       const lb = document.getElementById('leaderboard');
@@ -295,12 +255,6 @@
       const info = document.getElementById('lb-page-info');
       const prevBtn = document.getElementById('lb-prev');
       const nextBtn = document.getElementById('lb-next');
-
-      if (allPlayers.length === 0) {
-        lb.innerHTML = '<div class="lb-empty">— be the first</div>';
-        pag.style.display = 'none';
-        return;
-      }
 
       const totalPages = Math.ceil(allPlayers.length / PAGE_SIZE);
       const page = allPlayers.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
@@ -329,36 +283,10 @@
       renderLeaderboard();
     }
 
-    async function refresh() {
-      try {
-        const [lbRes, statsRes] = await Promise.all([
-          fetch('/api/leaderboard'),
-          fetch('/api/stats'),
-        ]);
-        if (lbRes.ok) {
-          allPlayers = await lbRes.json();
-          renderLeaderboard();
-        }
-        if (statsRes.ok) {
-          const data = await statsRes.json();
-          const statsEl = document.getElementById('stats');
-          statsEl.innerHTML =
-            `tokens generated: <span>${fmt(data.globalTokensEarned)}</span>` +
-            ` &nbsp;·&nbsp; players online: <span>${data.playersOnline}</span>`;
-        }
-      } catch (_) { /* server not up yet, silently retry */ }
-    }
+    renderLeaderboard();
 
-    function esc(str) {
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    }
-
-    refresh();
-    setInterval(refresh, 10_000);
+    document.getElementById('stats').innerHTML =
+      'tokens generated: <span>' + fmt(127687519268138900000) + '</span>';
   </script>
 </body>
 </html>
